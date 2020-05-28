@@ -17,12 +17,18 @@ import io.ktor.http.content.MultiPartData
 import io.ktor.http.content.PartData
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
+    val port = System.getenv("PORT")?.toInt() ?: 23567
+    embeddedServer(Netty, port) {
+
+    }.start(wait = true)
     val client = HttpClient(Apache) {
     }
     val install = install(ContentNegotiation) {
