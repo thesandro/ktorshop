@@ -53,7 +53,9 @@ fun Application.module(testing: Boolean = false) {
         get("/bozirati") {
             call.respondText("შეგეცი რატი აღარ ხარ საჭირო!", contentType = ContentType.Text.Plain)
         }
-
+        get("/jsonresponse") {
+            call.respond("I love Bibo")
+        }
         post("/fuckyou"){
 
             val multipart = call.receiveMultipart()
