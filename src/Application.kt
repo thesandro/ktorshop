@@ -54,7 +54,10 @@ fun Application.module(testing: Boolean = false) {
             call.respondText("შეგეცი რატი აღარ ხარ საჭირო!", contentType = ContentType.Text.Plain)
         }
         get("/jsonresponse") {
-            call.respond("I love Bibo")
+            val map = mutableMapOf<String,String>()
+            map["name_of_my_love"] = "bibo"
+
+            call.respond(map)
         }
         post("/fuckyou"){
 
