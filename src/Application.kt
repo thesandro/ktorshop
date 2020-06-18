@@ -70,7 +70,7 @@ object ApiClient {
     val getApiClient: ApiInterface by lazy {
         val retrofit = Retrofit.Builder()
                 .baseUrl(BASE_URL)
-                .addConverterFactory(GsonConverterFactory.create())
+                .addConverterFactory(ScalarsConverterFactory.create())
                 .build()
 
         retrofit.create(ApiInterface::class.java)
