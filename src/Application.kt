@@ -13,26 +13,43 @@ import kotlinx.css.*
 import io.ktor.client.*
 import io.ktor.client.engine.apache.*
 import io.ktor.features.ContentNegotiation
+import io.ktor.html.insert
 import io.ktor.http.content.MultiPartData
 import io.ktor.http.content.PartData
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import io.ktor.util.getValue
+import org.jetbrains.exposed.dao.EntityID
+import org.jetbrains.exposed.dao.IntEntity
+import org.jetbrains.exposed.dao.IntEntityClass
+import org.jetbrains.exposed.dao.IntIdTable
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.transactions.TransactionManager
+import org.jetbrains.exposed.sql.transactions.transaction
+import java.sql.Connection
+
 
 fun main(args: Array<String>): Unit {
+
     io.ktor.server.netty.EngineMain.main(args)
     val port = System.getenv("PORT")?.toInt() ?: 23567
     embeddedServer(Netty, port) {
-
     }.start(wait = true)
 }
 
 @Suppress("unused") // Referenced in application.conf
+
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
 
-
+// In file
+    Database.connect("jdbc:sqlite:identifier.sqlite", "org.sqlite.JDBC")
+// For both: set SQLite compatible isolation level, see
+// https://github.com/JetBrains/Exposed/wiki/FAQ
+    TransactionManager.manager.defaultIsolationLevel =
+            Connection.TRANSACTION_SERIALIZABLE
     val client = HttpClient(Apache) {
     }
     val install = install(ContentNegotiation) {
@@ -46,12 +63,10 @@ fun Application.module(testing: Boolean = false) {
 
 
 
+
     routing {
         get("/") {
             call.respondText("Twas me who was born!", contentType = ContentType.Text.CSS)
-        }
-        get("/bozirati") {
-            call.respondText("შეგეცი რატი აღარ ხარ საჭირო!", contentType = ContentType.Text.Plain)
         }
         get("/jsonresponse") {
             val map = mutableMapOf<String,String>()
@@ -59,22 +74,19 @@ fun Application.module(testing: Boolean = false) {
 
             call.respond(map)
         }
-        post("/fuckyou"){
+        post("/getThings"){
 
-            val multipart = call.receiveMultipart()
-            val array = mapOf<String,Map<String,String>>()
-//            while (true) {
-//                val part = multipart.readPart() ?: break
-//
-//                when (part) {
-//                    is PartData.FormItem ->
-//                        map[part.name!!] = part.value
-//                    is PartData.FileItem ->
-//                        map[part.name!!] = part.originalFileName.toString()
-//                }
-//
-//                part.dispose()
-//            }
+            // 'select *' SQL: SELECT Cities.id, Cities.name FROM Cities
+            val parameters = call.receiveParameters()
+            transaction{
+                SchemaUtils.create(Users)
+                // insert new city. SQL: INSERT INTO Cities (name) VALUES ('St. Petersburg')
+                Users.insert {
+                    it[name] = parameters["NAME"]!!
+                }
+                for( item in  Users.selectAll())
+                    println("id: ${item[Users.id]} user: ${item[Users.name]}")
+            }
             val map = mutableMapOf<String,Map<String,String>>()
             map["Residential"] = mapOf("1" to "Single Family","2" to "Condo","4" to "Townhouse")
             map["Land"] = mapOf("1" to "Residential","15" to "Agricultural","13" to "Industrial","12" to "Commercial")
@@ -109,16 +121,11 @@ fun Application.module(testing: Boolean = false) {
     }
 
 }
-fun FlowOrMetaDataContent.styleCss(builder: CSSBuilder.() -> Unit) {
-    style(type = ContentType.Text.CSS.toString()) {
-        +CSSBuilder().apply(builder).toString()
-    }
-}
-
-fun CommonAttributeGroupFacade.style(builder: CSSBuilder.() -> Unit) {
-    this.style = CSSBuilder().apply(builder).toString().trim()
-}
 
 suspend inline fun ApplicationCall.respondCss(builder: CSSBuilder.() -> Unit) {
     this.respondText(CSSBuilder().apply(builder).toString(), ContentType.Text.CSS)
+}
+object Users : Table() {
+    val id = integer("ID").autoIncrement().primaryKey()
+    val name = varchar("USER", length = 50) // Column<String>
 }

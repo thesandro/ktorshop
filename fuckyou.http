@@ -1,4 +1,0 @@
-POST http://127.0.0.1:8080/fuckyou
-Content-Type: application/json
-
-{"snippet": "yes"}

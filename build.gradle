@@ -44,4 +44,7 @@ dependencies {
     implementation "io.ktor:ktor-client-apache:$ktor_version"
     testImplementation "io.ktor:ktor-server-tests:$ktor_version"
     implementation "io.ktor:ktor-jackson:$ktor_version"
+    implementation 'org.jetbrains.exposed:exposed:0.17.6'
+    implementation "com.h2database:h2:1.4.200"
+    implementation "org.xerial:sqlite-jdbc:3.30.1"
 }
