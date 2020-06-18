@@ -1,38 +1,53 @@
 package com.example
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.auth0.jwt.JWT
+import com.auth0.jwt.JWTVerifier
+import com.auth0.jwt.algorithms.Algorithm
 import com.fasterxml.jackson.databind.SerializationFeature
-import io.ktor.application.*
-import io.ktor.response.*
-import io.ktor.request.*
-import io.ktor.routing.*
-import io.ktor.http.*
-import io.ktor.html.*
-import kotlinx.html.*
-import kotlinx.css.*
-import io.ktor.client.*
-import io.ktor.client.engine.apache.*
+import io.ktor.application.Application
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.auth.Authentication
+import io.ktor.auth.UserIdPrincipal
+import io.ktor.auth.jwt.jwt
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.apache.Apache
 import io.ktor.features.ContentNegotiation
-import io.ktor.html.insert
-import io.ktor.http.content.MultiPartData
+import io.ktor.features.StatusPages
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
+import io.ktor.http.content.streamProvider
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
+import io.ktor.request.receiveMultipart
+import io.ktor.request.receiveParameters
+import io.ktor.response.respond
+import io.ktor.response.respondText
+import io.ktor.routing.get
+import io.ktor.routing.post
+import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import io.ktor.util.getValue
-import org.h2.engine.User
-import org.jetbrains.exposed.dao.EntityID
-import org.jetbrains.exposed.dao.IntEntity
-import org.jetbrains.exposed.dao.IntEntityClass
-import org.jetbrains.exposed.dao.IntIdTable
+import io.ktor.util.KtorExperimentalAPI
+import io.ktor.util.hex
+import io.ktor.utils.io.core.readBytes
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
+import org.apache.http.auth.InvalidCredentialsException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.sql.Connection
+import io.ktor.http.content.forEachPart as forEachPart
 
 
-fun main(args: Array<String>): Unit {
+fun main(args: Array<String>){
 
     io.ktor.server.netty.EngineMain.main(args)
     val port = System.getenv("PORT")?.toInt() ?: 23567
@@ -40,20 +55,30 @@ fun main(args: Array<String>): Unit {
     }.start(wait = true)
 }
 
-@Suppress("unused") // Referenced in application.conf
-
+@KtorExperimentalAPI
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
+    install(StatusPages) {
+        exception<InvalidCredentialsException> { exception ->
+            call.respond(HttpStatusCode.Unauthorized, mapOf("OK" to false, "error" to (exception.message ?: "")))
+        }
+    }
+    val simpleJwt = SimpleJWT("my-super-secret-for-jwt")
 
-// In file
-    Database.connect("jdbc:sqlite:identifier.sqlite", "org.sqlite.JDBC")
-// For both: set SQLite compatible isolation level, see
-// https://github.com/JetBrains/Exposed/wiki/FAQ
+    install(Authentication) {
+        jwt {
+            verifier(simpleJwt.verifier)
+            validate {
+                UserIdPrincipal(it.payload.getClaim("name").asString())
+            }
+        }
+    }
+    Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
     TransactionManager.manager.defaultIsolationLevel =
             Connection.TRANSACTION_SERIALIZABLE
-    val client = HttpClient(Apache) {
+    HttpClient(Apache) {
     }
-    val install = install(ContentNegotiation) {
+    install(ContentNegotiation) {
         jackson {
             // Configure Jackson's ObjectMapper here
             enable(SerializationFeature.INDENT_OUTPUT)
@@ -62,75 +87,126 @@ fun Application.module(testing: Boolean = false) {
         register(ContentType.MultiPart.Any, JacksonConverter())
     }
 
-
-
-
     routing {
         get("/") {
             call.respondText("Twas me who was born!", contentType = ContentType.Text.CSS)
         }
-        get("/jsonresponse") {
-            val map = mutableMapOf<String,String>()
-            map["name_of_my_love"] = "bibo"
-
-            call.respond(map)
-        }
-        post("/get-things"){
-
-            // 'select *' SQL: SELECT Cities.id, Cities.name FROM Cities
-            val parameters = call.receiveParameters()
-            val names = mutableMapOf<String,String>()
+        get("/posts") {
+            val posts = mutableListOf<Map<String,Any>>()
             transaction{
                 SchemaUtils.create(Users)
-                // insert new city. SQL: INSERT INTO Cities (name) VALUES ('St. Petersburg')
-                Users.insert {
-                    it[name] = parameters["NAME"]!!
+                SchemaUtils.create(Posts)
+                for(item in Posts.selectAll()){
+                    posts.add(mapOf(
+                        Posts.owner.name to item[Posts.owner],
+                        Posts.title.name to item[Posts.title],
+                        Posts.description.name to item[Posts.description],
+                        Posts.categoryID.name to item[Posts.categoryID],
+                        Posts.filePath.name to item[Posts.filePath]
+                    ))
                 }
-                for( item in  Users.selectAll()) {
-                    println("id: ${item[Users.id]} user: ${item[Users.name]}")
-                    names[item[Users.id].toString()] = item[Users.name]
-                }
-
             }
-            val map = mutableMapOf<String,Map<String,String>>()
-            map["Residential"] = mapOf("1" to "Single Family","2" to "Condo","4" to "Townhouse")
-            map["Land"] = mapOf("1" to "Residential","15" to "Agricultural","13" to "Industrial","12" to "Commercial")
-            call.respond(names)
+            call.respond(HttpStatusCode.OK,posts)
         }
-        get("/html-dsl") {
-            call.respondHtml {
-                body {
-                    h1 { +"HTML" }
-                    ul {
-                        for (n in 1..10) {
-                            li { +"$n" }
+        post("/create-post"){
+            val multipart = call.receiveMultipart()
+            val formPart = mutableMapOf<String,String>()
+            multipart.forEachPart { part ->
+                when (part) {
+                    is PartData.FormItem -> {
+                        formPart[part.name!!] = part.value
+                    }
+                    is PartData.FileItem -> {
+                        val name = part.originalFileName!!
+                        val pathName = "/uploads/$name"
+                        val file = File(pathName)
+                        part.streamProvider().use { its ->
+                            file.outputStream().buffered().use {
+                                its.copyTo(it)
+                            }
                         }
+                        formPart["file_path"] = pathName
+                    }
+                    is PartData.BinaryItem -> {
+                        "BinaryItem(${part.name},${hex(part.provider().readBytes())})"
                     }
                 }
+                part.dispose()
             }
-        }
 
-        get("/styles.css") {
-            call.respondCss {
-                kotlinx.css.body {
-                    backgroundColor = Color.red
-                }
-                kotlinx.css.p {
-                    fontSize = 2.em
-                }
-                rule("p.myclass") {
-                    color = Color.blue
+            transaction{
+                SchemaUtils.create(Users)
+                SchemaUtils.create(Posts)
+                val userId = formPart["user_id"] ?:throw InvalidCredentialsException("user_id missing")
+                val title = formPart["title"] ?:throw InvalidCredentialsException("title missing")
+                val description = formPart["description"] ?:throw InvalidCredentialsException("description missing")
+                val categoryID = formPart["category_id"] ?:throw InvalidCredentialsException("category missing")
+                val filePath = formPart["file_path"]?:throw InvalidCredentialsException("file missing")
+                Users.select {(Users.id eq userId.toInt())}
+                    .singleOrNull() ?:throw InvalidCredentialsException("user_id doesn't exist.")
+                Posts.insert {
+                    it[Posts.owner] = userId.toInt()
+                    it[Posts.title] = title
+                    it[Posts.description] = description
+                    it[Posts.categoryID] = categoryID.toInt()
+                    it[Posts.filePath] = filePath
                 }
             }
+            call.respond(HttpStatusCode.OK,mapOf("OK" to true, "posted" to (true)))
+        }
+        post("/register"){
+            val parameters = call.receiveParameters()
+            transaction{
+                SchemaUtils.create(Users)
+                val email = parameters["email"] ?:throw InvalidCredentialsException("email missing")
+                val password = parameters["password"] ?:throw InvalidCredentialsException("password missing")
+                val fullName = parameters["full_name"] ?:throw InvalidCredentialsException("full_name missing")
+                val user = Users.select {(Users.email eq email) and (Users.password eq password)}
+                        .singleOrNull()
+                if(user !=null) throw InvalidCredentialsException("Email already registered.")
+                Users.insert {
+                    it[Users.email] = email
+                    it[Users.password] = password
+                    it[Users.fullName] = fullName
+                }
+            }
+            call.respond(HttpStatusCode.OK,mapOf("OK" to true, "registered" to (true)))
+        }
+        post("/login"){
+            val parameters = call.receiveParameters()
+            var userID = 0
+            transaction{
+                SchemaUtils.create(Users)
+                val email = parameters["email"] ?:throw InvalidCredentialsException("email missing")
+                val password = parameters["password"] ?:throw InvalidCredentialsException("password missing")
+                val user = Users.select {(Users.email eq email) and (Users.password eq password)}
+                        .singleOrNull() ?: throw InvalidCredentialsException("Invalid credentials.")
+                userID = user[Users.id]
+            }
+            //call.respond(HttpStatusCode.OK,mapOf("token" to simpleJwt.sign(userID)))
+            call.respond(HttpStatusCode.OK,mapOf("token" to userID))
         }
     }
 
 }
+class FileData(val name:String,val byteArray:ByteArray)
 
-suspend inline fun ApplicationCall.respondCss(builder: CSSBuilder.() -> Unit) {
-    this.respondText(CSSBuilder().apply(builder).toString(), ContentType.Text.CSS)
+open class SimpleJWT(secret: String) {
+    private val algorithm = Algorithm.HMAC256(secret)
+    val verifier: JWTVerifier = JWT.require(algorithm).build()
+    fun sign(id: Int): String = JWT.create().withClaim("id", id).sign(algorithm)
 }
 object Users : Table() {
-    val id = integer("ID").autoIncrement().primaryKey()
-    val name = varchar("USER", length = 50) // Column<String>
+    val id = integer("id").autoIncrement().primaryKey()
+    val email = varchar("email", length = 50).uniqueIndex() // Column<String>
+    val fullName = varchar("full_name",length = 50) // Column<String>
+    val password = varchar("password",length = 50) // Column<String>
+}
+object Posts:Table(){
+    val id = integer("id").autoIncrement().primaryKey()
+    val owner = integer("owner").references(Users.id,ReferenceOption.CASCADE)
+    val title = varchar("title", length = 80) // Column<String>
+    val description = varchar("description", length = 250) // Column<String>
+    val categoryID = integer("category_id")
+    val filePath = varchar("file_path",length = 80)
 }
