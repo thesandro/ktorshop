@@ -21,6 +21,7 @@ import io.ktor.jackson.jackson
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.getValue
+import org.h2.engine.User
 import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
@@ -74,23 +75,27 @@ fun Application.module(testing: Boolean = false) {
 
             call.respond(map)
         }
-        post("/getThings"){
+        post("/get-things"){
 
             // 'select *' SQL: SELECT Cities.id, Cities.name FROM Cities
             val parameters = call.receiveParameters()
+            val names = mutableMapOf<String,String>()
             transaction{
                 SchemaUtils.create(Users)
                 // insert new city. SQL: INSERT INTO Cities (name) VALUES ('St. Petersburg')
                 Users.insert {
                     it[name] = parameters["NAME"]!!
                 }
-                for( item in  Users.selectAll())
+                for( item in  Users.selectAll()) {
                     println("id: ${item[Users.id]} user: ${item[Users.name]}")
+                    names[item[Users.id].toString()] = item[Users.name]
+                }
+
             }
             val map = mutableMapOf<String,Map<String,String>>()
             map["Residential"] = mapOf("1" to "Single Family","2" to "Condo","4" to "Townhouse")
             map["Land"] = mapOf("1" to "Residential","15" to "Agricultural","13" to "Industrial","12" to "Commercial")
-            call.respond(map)
+            call.respond(names)
         }
         get("/html-dsl") {
             call.respondHtml {
