@@ -162,6 +162,7 @@ fun Application.module(testing: Boolean = false) {
                         val map = mutableMapOf("upload_preset" to "izwuplfk")
                         val requestFile = RequestBody.create(MediaType.parse("multipart/from-data"), outputStream.toByteArray())
                         val image = MultipartBody.Part.createFormData("foto", part.originalFileName, requestFile)
+                        print("\n yes yes nono")
                         val value = ApiClient.getApiClient.uploadData(image,map)
                         print("\n yes yes $value")
 
