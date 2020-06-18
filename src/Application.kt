@@ -23,7 +23,6 @@ import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondText
-import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
@@ -32,18 +31,23 @@ import io.ktor.server.netty.Netty
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.hex
 import io.ktor.utils.io.core.readBytes
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
-import kotlinx.css.Position
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import org.apache.http.auth.InvalidCredentialsException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.json.simple.JSONObject
+import retrofit2.Call
+import retrofit2.Retrofit
+import retrofit2.converter.scalars.ScalarsConverterFactory
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
+import retrofit2.http.PartMap
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
 import java.sql.Connection
 import io.ktor.http.content.forEachPart as forEachPart
 
@@ -57,6 +61,32 @@ fun main(args: Array<String>){
     }.start(wait = true)
 }
 
+object ApiClient {
+
+    private val BASE_URL = "https://api.cloudinary.com/v1_1/dcu6ulr6e/image/"
+
+    val getApiClient: ApiInterface by lazy {
+        val retrofit = Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(ScalarsConverterFactory.create())
+                .build()
+
+        retrofit.create(ApiInterface::class.java)
+
+    }
+
+}
+interface ApiInterface {
+
+    @Multipart
+    @POST("upload")
+    suspend fun uploadData(
+            @Part photo: MultipartBody.Part,
+            @PartMap parameters: Map<String, String>
+    ): String
+
+
+}
 @KtorExperimentalAPI
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
@@ -106,6 +136,7 @@ fun Application.module(testing: Boolean = false) {
                         Posts.categoryID.name to item[Posts.categoryID],
                         Posts.filePath.name to item[Posts.filePath]
                     ))
+
                 }
             }
             call.respond(HttpStatusCode.OK,posts)
@@ -121,12 +152,19 @@ fun Application.module(testing: Boolean = false) {
                     is PartData.FileItem -> {
                         val name = part.originalFileName!!
                         val pathName = File("").absolutePath+"/uploads/$name"
-                        val file = File(pathName)
+                        val outputStream = ByteArrayOutputStream()
+
                         part.streamProvider().use { its ->
-                            file.outputStream().buffered().use {
+                            outputStream.buffered().use {
                                 its.copyTo(it)
                             }
                         }
+                        val map = mutableMapOf("upload_preset" to "izwuplfk")
+                        val requestFile = RequestBody.create(MediaType.parse("multipart/from-data"), outputStream.toByteArray())
+                        val image = MultipartBody.Part.createFormData("foto", part.originalFileName, requestFile)
+                        val value = ApiClient.getApiClient.uploadData(image,map)
+                        print("\n yes yes $value")
+
                         formPart["file_path"] = pathName
                     }
                     is PartData.BinaryItem -> {
