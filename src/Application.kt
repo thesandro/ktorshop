@@ -16,14 +16,14 @@ import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.PartData
-import io.ktor.http.content.streamProvider
+import io.ktor.http.content.*
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
 import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondText
+import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
@@ -36,6 +36,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import kotlinx.css.Position
 import org.apache.http.auth.InvalidCredentialsException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.TransactionManager
@@ -52,12 +53,14 @@ fun main(args: Array<String>){
     io.ktor.server.netty.EngineMain.main(args)
     val port = System.getenv("PORT")?.toInt() ?: 23567
     embeddedServer(Netty, port) {
+
     }.start(wait = true)
 }
 
 @KtorExperimentalAPI
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
+
     install(StatusPages) {
         exception<InvalidCredentialsException> { exception ->
             call.respond(HttpStatusCode.Unauthorized, mapOf("OK" to false, "error" to (exception.message ?: "")))
@@ -86,7 +89,6 @@ fun Application.module(testing: Boolean = false) {
         register(ContentType.Application.Json, JacksonConverter())
         register(ContentType.MultiPart.Any, JacksonConverter())
     }
-
     routing {
         get("/") {
             call.respondText("Twas me who was born!", contentType = ContentType.Text.CSS)
@@ -118,7 +120,7 @@ fun Application.module(testing: Boolean = false) {
                     }
                     is PartData.FileItem -> {
                         val name = part.originalFileName!!
-                        val pathName = "/uploads/$name"
+                        val pathName = File("").absolutePath+"/uploads/$name"
                         val file = File(pathName)
                         part.streamProvider().use { its ->
                             file.outputStream().buffered().use {
@@ -189,7 +191,6 @@ fun Application.module(testing: Boolean = false) {
     }
 
 }
-class FileData(val name:String,val byteArray:ByteArray)
 
 open class SimpleJWT(secret: String) {
     private val algorithm = Algorithm.HMAC256(secret)
