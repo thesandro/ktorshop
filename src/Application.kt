@@ -40,6 +40,8 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.json.simple.JSONObject
 import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.http.Multipart
@@ -83,7 +85,7 @@ interface ApiInterface {
     suspend fun uploadData(
             @Part photo: MultipartBody.Part,
             @PartMap parameters: Map<String, String>
-    ): String
+    ):Call<String>
 
 
 }
@@ -162,8 +164,20 @@ fun Application.module(testing: Boolean = false) {
                         val map = mutableMapOf("upload_preset" to "izwuplfk")
                         val requestFile = RequestBody.create(MediaType.parse("multipart/from-data"), outputStream.toByteArray())
                         val image = MultipartBody.Part.createFormData("foto", part.originalFileName, requestFile)
-                        print("\n yes yes nono")
-                        val value = ApiClient.getApiClient.uploadData(image,map)
+                        print("\n yes yes nono\n")
+                        val value = ApiClient.getApiClient.uploadData(image,map).enqueue(object : Callback<String> {
+                            override fun onFailure(call: Call<String>, t: Throwable) {
+                                print("yes sad ${t.message}")
+                            }
+
+                            override fun onResponse(
+                                    call: Call<String>,
+                                    response: Response<String>
+                            ) {
+                                print("yes greate ${response.message()}")
+                            }
+
+                        })
                         print("\n yes yes $value")
 
                         formPart["file_path"] = pathName
