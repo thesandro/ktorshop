@@ -193,10 +193,8 @@ fun Application.module(testing: Boolean = false) {
                                 }
                             }catch (error :Exception)
                             {
-                                print("\nresponse is: ${error}\n")
                                 print("\nresponse is: ${error.message}\n")
-                                print("\nresponse is: ${error.stackTrace}\n")
-                                print("\nresponse is: ${error.cause}\n")
+                                print("\nresponse is: ${InetAddress.getLocalHost().hostAddress}\n")
                             }
                         }
                         val map = mutableMapOf("upload_preset" to "izwuplfk")
