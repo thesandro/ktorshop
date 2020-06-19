@@ -39,15 +39,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.converter.scalars.ScalarsConverterFactory
-import retrofit2.http.Multipart
-import retrofit2.http.POST
-import retrofit2.http.Part
-import retrofit2.http.PartMap
+import retrofit2.http.*
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.sql.Connection
@@ -63,21 +55,7 @@ fun main(args: Array<String>){
     }.start(wait = true)
 }
 
-object ApiClient {
 
-    private val BASE_URL = "https://api.cloudinary.com/v1_1/dcu6ulr6e/image/"
-
-    val getApiClient: ApiInterface by lazy {
-        val retrofit = Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .addConverterFactory(JacksonConverterFactory.create())
-                .build()
-
-        retrofit.create(ApiInterface::class.java)
-
-    }
-
-}
 interface ApiInterface {
 
     @Multipart
@@ -88,6 +66,19 @@ interface ApiInterface {
     ):Call<String>
 
 
+}
+interface Service {
+    @GET("string")
+    suspend fun getAll(): List<String>
+
+    @Multipart
+    @POST("create-post")
+    suspend fun uploadData(
+            @Part foto: MultipartBody.Part,
+            @PartMap parameters: Map<String, String>
+    )
+    @GET("string/{id}")
+    suspend fun getSingle(@Path("id") id: Long): String
 }
 @KtorExperimentalAPI
 @kotlin.jvm.JvmOverloads
@@ -164,21 +155,6 @@ fun Application.module(testing: Boolean = false) {
                         val map = mutableMapOf("upload_preset" to "izwuplfk")
                         val requestFile = RequestBody.create(MediaType.parse("multipart/from-data"), outputStream.toByteArray())
                         val image = MultipartBody.Part.createFormData("foto", part.originalFileName, requestFile)
-                        print("\n yes yes nono\n")
-                        val value = ApiClient.getApiClient.uploadData(image,map).enqueue(object : Callback<String> {
-                            override fun onFailure(call: Call<String>, t: Throwable) {
-                                print("yes sad ${t.message}")
-                            }
-
-                            override fun onResponse(
-                                    call: Call<String>,
-                                    response: Response<String>
-                            ) {
-                                print("yes greate ${response.message()}")
-                            }
-
-                        })
-                        print("\n yes yes $value")
 
                         formPart["file_path"] = pathName
                     }
@@ -209,6 +185,7 @@ fun Application.module(testing: Boolean = false) {
             }
             call.respond(HttpStatusCode.OK,mapOf("OK" to true, "posted" to (true)))
         }
+
         post("/register"){
             val parameters = call.receiveParameters()
             transaction{
