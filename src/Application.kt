@@ -12,13 +12,21 @@ import io.ktor.auth.UserIdPrincipal
 import io.ktor.auth.jwt.jwt
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
+import io.ktor.client.request.forms.*
+import io.ktor.client.request.headers
+import io.ktor.client.request.url
+import io.ktor.client.statement.HttpResponse
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
 import io.ktor.http.ContentType
+import io.ktor.http.Headers.Companion.build
+import io.ktor.http.HeadersBuilder
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.*
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
+import io.ktor.request.receive
 import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
@@ -31,6 +39,8 @@ import io.ktor.server.netty.Netty
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.hex
 import io.ktor.utils.io.core.readBytes
+import io.ktor.utils.io.streams.asInput
+import kotlinx.css.header
 import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -42,7 +52,9 @@ import retrofit2.Call
 import retrofit2.http.*
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.InetAddress
 import java.sql.Connection
+import javax.swing.text.AbstractDocument
 import io.ktor.http.content.forEachPart as forEachPart
 
 
@@ -150,6 +162,26 @@ fun Application.module(testing: Boolean = false) {
                         part.streamProvider().use { its ->
                             outputStream.buffered().use {
                                 its.copyTo(it)
+                            }
+                        }
+                        HttpClient(Apache).use { client ->
+                            val parts: List<PartData> = formData {
+                                // Regular form parameter
+                                append("upload_preset", "izwuplfk")
+
+                                val headersBuilder = HeadersBuilder()
+                                headersBuilder[HttpHeaders.ContentType] =  ContentType.Image.Any.contentType
+                                headersBuilder[HttpHeaders.ContentLength] =  outputStream.toByteArray().size.toString()
+                                // File upload. Param name is "file-1" and file's name is "file.csv"
+                                append("file-1",outputStream.toByteArray(), headersBuilder.build())
+                            }
+
+                            client.submitFormWithBinaryData<Unit>(formData = parts /* prepared parts */) {
+                                url("https://api.cloudinary.com/v1_1/dcu6ulr6e/image/upload")
+
+                                // Headers
+                                headers {
+                                }
                             }
                         }
                         val map = mutableMapOf("upload_preset" to "izwuplfk")
