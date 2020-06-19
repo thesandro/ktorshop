@@ -45,6 +45,7 @@ import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import org.apache.http.auth.InvalidCredentialsException
+import org.apache.http.client.methods.HttpHead
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -157,6 +158,8 @@ fun Application.module(testing: Boolean = false) {
                     is PartData.FileItem -> {
                         val name = part.originalFileName!!
                         val pathName = File("").absolutePath+"/uploads/$name"
+                        for(item in part.headers.entries())
+                            print("\nheaders: ${item.key}  ${item.value}\n")
                         val outputStream = ByteArrayOutputStream()
 
                         part.streamProvider().use { its ->
@@ -167,21 +170,33 @@ fun Application.module(testing: Boolean = false) {
                         HttpClient(Apache).use { client ->
                             val parts: List<PartData> = formData {
                                 // Regular form parameter
-                                append("upload_preset", "izwuplfk")
 
                                 val headersBuilder = HeadersBuilder()
                                 headersBuilder[HttpHeaders.ContentType] =  ContentType.Image.Any.contentType
                                 headersBuilder[HttpHeaders.ContentLength] =  outputStream.toByteArray().size.toString()
+                                headersBuilder[HttpHeaders.Host] = InetAddress.getLocalHost().hostAddress
+                                print("\nthis" + outputStream.toByteArray().size.toString() + "\n")
                                 // File upload. Param name is "file-1" and file's name is "file.csv"
                                 append("file-1",outputStream.toByteArray(), headersBuilder.build())
+
+                                append("upload_preset", "izwuplfk")
                             }
 
-                            client.submitFormWithBinaryData<Unit>(formData = parts /* prepared parts */) {
-                                url("https://api.cloudinary.com/v1_1/dcu6ulr6e/image/upload")
+                            try {
 
-                                // Headers
-                                headers {
+                                val response = client.submitFormWithBinaryData<String>(formData = parts /* prepared parts */) {
+                                    url("https://api.cloudinary.com/v1_1/dcu6ulr6e/image/upload")
+                                    // Headers
+                                    headers {
+                                        this[HttpHeaders.Host] = InetAddress.getLocalHost().hostAddress
+                                    }
                                 }
+                            }catch (error :Exception)
+                            {
+                                print("\nresponse is: ${error}\n")
+                                print("\nresponse is: ${error.message}\n")
+                                print("\nresponse is: ${error.stackTrace}\n")
+                                print("\nresponse is: ${error.cause}\n")
                             }
                         }
                         val map = mutableMapOf("upload_preset" to "izwuplfk")
