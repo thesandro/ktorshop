@@ -24,7 +24,10 @@ fun Routing.posts(){
                         Posts.title.name to item[Posts.title],
                         Posts.description.name to item[Posts.description],
                         Posts.categoryID.name to item[Posts.categoryID],
-                        Posts.url.name to item[Posts.url]
+                        Posts.url.name to item[Posts.url],
+                        Posts.tags.name to item[Posts.tags],
+                        Posts.price.name to item[Posts.price],
+                        Posts.priceType.name to item[Posts.priceType]
                 ))
             }
         }

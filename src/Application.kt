@@ -126,4 +126,7 @@ object Posts : Table() {
     val description = varchar("description", length = 250) // Column<String>
     val categoryID = integer("category_id")
     val url = varchar("url", length = 80)
+    val tags = varchar("tags",length = 120)
+    val price = float("price")
+    val priceType = varchar("price_type",length = 80)
 }

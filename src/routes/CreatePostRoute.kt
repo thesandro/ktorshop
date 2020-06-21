@@ -13,6 +13,7 @@ import io.ktor.request.receiveMultipart
 import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.post
+import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.hex
 import io.ktor.utils.io.core.readBytes
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -26,6 +27,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.ByteArrayOutputStream
 
+@KtorExperimentalAPI
 fun Routing.createPost(){
     post("/create-post") {
         val multipart = call.receiveMultipart()
@@ -65,13 +67,20 @@ fun Routing.createPost(){
             val title = formPart["title"] ?: throw InvalidCredentialsException("title missing")
             val description = formPart["description"] ?: throw InvalidCredentialsException("description missing")
             val categoryID = formPart["category_id"]  ?: throw InvalidCredentialsException("category missing")
+            val tags = formPart["tags"] ?: throw InvalidCredentialsException("tags missing")
+            val price = formPart["price"] ?: throw InvalidCredentialsException("price missing")
+            val priceType = formPart["price_type"] ?: throw InvalidCredentialsException("price type missing")
             val filePath = formPart["url"] ?: throw InvalidCredentialsException("file missing")
+
             Users.select { (Users.id eq userId.toInt()) }.singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
             Posts.insert {
                 it[owner] = userId.toInt()
                 it[Posts.title] = title
                 it[Posts.description] = description
                 it[Posts.categoryID] = categoryID.toInt()
+                it[Posts.tags] = tags
+                it[Posts.price] = price.toFloat()
+                it[Posts.priceType] = priceType
                 it[url] = filePath
             }
         }
