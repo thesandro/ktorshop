@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.google.gson.JsonParser
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
@@ -12,21 +13,15 @@ import io.ktor.auth.UserIdPrincipal
 import io.ktor.auth.jwt.jwt
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
-import io.ktor.client.request.forms.*
-import io.ktor.client.request.headers
-import io.ktor.client.request.url
-import io.ktor.client.statement.HttpResponse
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
 import io.ktor.http.ContentType
-import io.ktor.http.Headers.Companion.build
-import io.ktor.http.HeadersBuilder
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.*
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
+import io.ktor.http.content.streamProvider
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
-import io.ktor.request.receive
 import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
@@ -39,27 +34,23 @@ import io.ktor.server.netty.Netty
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.hex
 import io.ktor.utils.io.core.readBytes
-import io.ktor.utils.io.streams.asInput
-import kotlinx.css.header
-import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
-import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.apache.http.auth.InvalidCredentialsException
-import org.apache.http.client.methods.HttpHead
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
-import retrofit2.Call
-import retrofit2.http.*
+import retrofit2.Retrofit
+import retrofit2.converter.scalars.ScalarsConverterFactory
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
+import retrofit2.http.PartMap
 import java.io.ByteArrayOutputStream
-import java.io.File
-import java.net.InetAddress
 import java.sql.Connection
-import javax.swing.text.AbstractDocument
-import io.ktor.http.content.forEachPart as forEachPart
 
-
-fun main(args: Array<String>){
+fun main(args: Array<String>) {
 
     io.ktor.server.netty.EngineMain.main(args)
     val port = System.getenv("PORT")?.toInt() ?: 23567
@@ -68,31 +59,30 @@ fun main(args: Array<String>){
     }.start(wait = true)
 }
 
-
 interface ApiInterface {
-
     @Multipart
     @POST("upload")
     suspend fun uploadData(
-            @Part photo: MultipartBody.Part,
-            @PartMap parameters: Map<String, String>
-    ):Call<String>
-
-
-}
-interface Service {
-    @GET("string")
-    suspend fun getAll(): List<String>
-
-    @Multipart
-    @POST("create-post")
-    suspend fun uploadData(
             @Part foto: MultipartBody.Part,
             @PartMap parameters: Map<String, String>
-    )
-    @GET("string/{id}")
-    suspend fun getSingle(@Path("id") id: Long): String
+    ): String
 }
+object ApiClient {
+
+    private val BASE_URL = "https://api.cloudinary.com/v1_1/dcu6ulr6e/image/"
+
+    val getApiClient: ApiInterface by lazy {
+        val retrofit = Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(ScalarsConverterFactory.create())
+                .build()
+
+        retrofit.create(ApiInterface::class.java)
+
+    }
+
+}
+
 @KtorExperimentalAPI
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
@@ -130,26 +120,27 @@ fun Application.module(testing: Boolean = false) {
             call.respondText("Twas me who was born!", contentType = ContentType.Text.CSS)
         }
         get("/posts") {
-            val posts = mutableListOf<Map<String,Any>>()
-            transaction{
+            val posts = mutableListOf<Map<String, Any>>()
+            transaction {
                 SchemaUtils.create(Users)
                 SchemaUtils.create(Posts)
-                for(item in Posts.selectAll()){
+                for (item in Posts.selectAll()) {
                     posts.add(mapOf(
-                        Posts.owner.name to item[Posts.owner],
-                        Posts.title.name to item[Posts.title],
-                        Posts.description.name to item[Posts.description],
-                        Posts.categoryID.name to item[Posts.categoryID],
-                        Posts.filePath.name to item[Posts.filePath]
+                            Posts.owner.name to item[Posts.owner],
+                            Posts.title.name to item[Posts.title],
+                            Posts.description.name to item[Posts.description],
+                            Posts.categoryID.name to item[Posts.categoryID],
+                            Posts.url.name to item[Posts.url]
                     ))
 
                 }
             }
-            call.respond(HttpStatusCode.OK,posts)
+            call.respond(HttpStatusCode.OK, posts)
         }
-        post("/create-post"){
+
+        post("/create-post") {
             val multipart = call.receiveMultipart()
-            val formPart = mutableMapOf<String,String>()
+            val formPart = mutableMapOf<String, String>()
             multipart.forEachPart { part ->
                 when (part) {
                     is PartData.FormItem -> {
@@ -157,51 +148,19 @@ fun Application.module(testing: Boolean = false) {
                     }
                     is PartData.FileItem -> {
                         val name = part.originalFileName!!
-                        val pathName = File("").absolutePath+"/uploads/$name"
-                        for(item in part.headers.entries())
-                            print("\nheaders: ${item.key}  ${item.value}\n")
                         val outputStream = ByteArrayOutputStream()
-
                         part.streamProvider().use { its ->
                             outputStream.buffered().use {
                                 its.copyTo(it)
                             }
                         }
-                        HttpClient(Apache).use { client ->
-                            val parts: List<PartData> = formData {
-                                // Regular form parameter
-
-                                val headersBuilder = HeadersBuilder()
-                                headersBuilder[HttpHeaders.ContentType] =  ContentType.Image.Any.contentType
-                                headersBuilder[HttpHeaders.ContentLength] =  outputStream.toByteArray().size.toString()
-                                headersBuilder[HttpHeaders.Host] = InetAddress.getLocalHost().hostAddress
-                                print("\nthis" + outputStream.toByteArray().size.toString() + "\n")
-                                // File upload. Param name is "file-1" and file's name is "file.csv"
-                                append("file-1",outputStream.toByteArray(), headersBuilder.build())
-
-                                append("upload_preset", "izwuplfk")
-                            }
-
-                            try {
-
-                                val response = client.submitFormWithBinaryData<String>(formData = parts /* prepared parts */) {
-                                    url("https://api.cloudinary.com/v1_1/dcu6ulr6e/image/upload")
-                                    // Headers
-                                    headers {
-                                        this[HttpHeaders.Host] = InetAddress.getLocalHost().hostAddress
-                                    }
-                                }
-                            }catch (error :Exception)
-                            {
-                                print("\nresponse is: ${error.message}\n")
-                                print("\nresponse is: ${InetAddress.getLocalHost().hostAddress}\n")
-                            }
-                        }
-                        val map = mutableMapOf("upload_preset" to "izwuplfk")
-                        val requestFile = RequestBody.create(MediaType.parse("multipart/from-data"), outputStream.toByteArray())
-                        val image = MultipartBody.Part.createFormData("foto", part.originalFileName, requestFile)
-
-                        formPart["file_path"] = pathName
+                        val requestFile = outputStream.toByteArray().toRequestBody("multipart/from-data".toMediaTypeOrNull(), 0, outputStream.toByteArray().size)
+                        val photo = MultipartBody.Part.createFormData("file", name, requestFile)
+                        val map = mapOf("upload_preset" to "izwuplfk")
+                        val string = ApiClient.getApiClient.uploadData(photo,map)
+                        val jsonObject = JsonParser().parse(string).asJsonObject
+                        val url = jsonObject.get("url")
+                        formPart["url"] = url.asString
                     }
                     is PartData.BinaryItem -> {
                         "BinaryItem(${part.name},${hex(part.provider().readBytes())})"
@@ -210,79 +169,83 @@ fun Application.module(testing: Boolean = false) {
                 part.dispose()
             }
 
-            transaction{
+            transaction {
                 SchemaUtils.create(Users)
                 SchemaUtils.create(Posts)
-                val userId = formPart["user_id"] ?:throw InvalidCredentialsException("user_id missing")
-                val title = formPart["title"] ?:throw InvalidCredentialsException("title missing")
-                val description = formPart["description"] ?:throw InvalidCredentialsException("description missing")
-                val categoryID = formPart["category_id"] ?:throw InvalidCredentialsException("category missing")
-                val filePath = formPart["file_path"]?:throw InvalidCredentialsException("file missing")
-                Users.select {(Users.id eq userId.toInt())}
-                    .singleOrNull() ?:throw InvalidCredentialsException("user_id doesn't exist.")
+                val userId = formPart["user_id"] ?: throw InvalidCredentialsException("user_id missing")
+                val title = formPart["title"] ?: throw InvalidCredentialsException("title missing")
+                val description = formPart["description"] ?: throw InvalidCredentialsException("description missing")
+                val categoryID = formPart["category_id"]  ?: throw InvalidCredentialsException("category missing")
+                val filePath = formPart["url"] ?: throw InvalidCredentialsException("file missing")
+                Users.select { (Users.id eq userId.toInt()) }
+                        .singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
                 Posts.insert {
                     it[Posts.owner] = userId.toInt()
                     it[Posts.title] = title
                     it[Posts.description] = description
                     it[Posts.categoryID] = categoryID.toInt()
-                    it[Posts.filePath] = filePath
+                    it[Posts.url] = filePath
+                    //it[Posts.file] = file
                 }
             }
-            call.respond(HttpStatusCode.OK,mapOf("OK" to true, "posted" to (true)))
+            call.respond(HttpStatusCode.OK, mapOf("OK" to true, "posted" to (true)))
         }
 
-        post("/register"){
+        post("/register") {
             val parameters = call.receiveParameters()
-            transaction{
+            transaction {
                 SchemaUtils.create(Users)
-                val email = parameters["email"] ?:throw InvalidCredentialsException("email missing")
-                val password = parameters["password"] ?:throw InvalidCredentialsException("password missing")
-                val fullName = parameters["full_name"] ?:throw InvalidCredentialsException("full_name missing")
-                val user = Users.select {(Users.email eq email) and (Users.password eq password)}
+                val email = parameters["email"] ?: throw InvalidCredentialsException("email missing")
+                val password = parameters["password"] ?: throw InvalidCredentialsException("password missing")
+                val fullName = parameters["full_name"] ?: throw InvalidCredentialsException("full_name missing")
+                val user = Users.select { (Users.email eq email) and (Users.password eq password) }
                         .singleOrNull()
-                if(user !=null) throw InvalidCredentialsException("Email already registered.")
+                if (user != null) throw InvalidCredentialsException("Email already registered.")
                 Users.insert {
                     it[Users.email] = email
                     it[Users.password] = password
                     it[Users.fullName] = fullName
                 }
             }
-            call.respond(HttpStatusCode.OK,mapOf("OK" to true, "registered" to (true)))
+            call.respond(HttpStatusCode.OK, mapOf("OK" to true, "registered" to (true)))
         }
-        post("/login"){
+        post("/login") {
             val parameters = call.receiveParameters()
             var userID = 0
-            transaction{
+            transaction {
                 SchemaUtils.create(Users)
-                val email = parameters["email"] ?:throw InvalidCredentialsException("email missing")
-                val password = parameters["password"] ?:throw InvalidCredentialsException("password missing")
-                val user = Users.select {(Users.email eq email) and (Users.password eq password)}
+                val email = parameters["email"] ?: throw InvalidCredentialsException("email missing")
+                val password = parameters["password"] ?: throw InvalidCredentialsException("password missing")
+                val user = Users.select { (Users.email eq email) and (Users.password eq password) }
                         .singleOrNull() ?: throw InvalidCredentialsException("Invalid credentials.")
                 userID = user[Users.id]
             }
             //call.respond(HttpStatusCode.OK,mapOf("token" to simpleJwt.sign(userID)))
-            call.respond(HttpStatusCode.OK,mapOf("token" to userID))
+            call.respond(HttpStatusCode.OK, mapOf("token" to userID))
         }
     }
 
 }
+
 
 open class SimpleJWT(secret: String) {
     private val algorithm = Algorithm.HMAC256(secret)
     val verifier: JWTVerifier = JWT.require(algorithm).build()
     fun sign(id: Int): String = JWT.create().withClaim("id", id).sign(algorithm)
 }
+
 object Users : Table() {
     val id = integer("id").autoIncrement().primaryKey()
     val email = varchar("email", length = 50).uniqueIndex() // Column<String>
-    val fullName = varchar("full_name",length = 50) // Column<String>
-    val password = varchar("password",length = 50) // Column<String>
+    val fullName = varchar("full_name", length = 50) // Column<String>
+    val password = varchar("password", length = 50) // Column<String>
 }
-object Posts:Table(){
+
+object Posts : Table() {
     val id = integer("id").autoIncrement().primaryKey()
-    val owner = integer("owner").references(Users.id,ReferenceOption.CASCADE)
+    val owner = integer("owner").references(Users.id, ReferenceOption.CASCADE)
     val title = varchar("title", length = 80) // Column<String>
     val description = varchar("description", length = 250) // Column<String>
     val categoryID = integer("category_id")
-    val filePath = varchar("file_path",length = 80)
+    val url = varchar("url", length = 80)
 }
