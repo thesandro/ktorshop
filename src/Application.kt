@@ -45,6 +45,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.apache.http.auth.InvalidCredentialsException
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.ByteArrayOutputStream
@@ -186,40 +187,52 @@ fun Application.module(testing: Boolean = false) {
                         it[UserProfile.cardHolderName] = cardHolderName
                         it[UserProfile.expiryData] = expiryData
                         it[UserProfile.securityCode] = securityCode
-                    }
+                        }
                 }
                 call.respond(HttpStatusCode.OK, mapOf("OK" to true, "profile completed" to (true)))
             }
 
             post("profile"){
                 val parameters = call.receiveParameters()
-                val user_id = parameters["user_id"] ?: throw InvalidCredentialsException("user_id missing")
+                val userId = parameters["user_id"] ?: throw InvalidCredentialsException("user_id missing")
                 var userProfile = mapOf<String,Any>()
                 transaction {
                     SchemaUtils.create(Users)
                     SchemaUtils.create(Posts)
-                    val fullProfile = (Users innerJoin UserProfile).slice(
-                            Users.email,
-                            Users.fullName,
-                            UserProfile.profileUrl,
-                            UserProfile.locationAddress,
-                            UserProfile.cardNumber,
-                            UserProfile.cardHolderName,
-                            UserProfile.expiryData,
-                            UserProfile.securityCode
-                    ).select{
-                        Users.id eq user_id.toInt()
-                    }.first()
-                    userProfile = mapOf(
-                            Users.email.name to fullProfile[ Users.email],
-                            Users.fullName.name to fullProfile[Users.fullName],
-                            UserProfile.profileUrl.name to fullProfile[UserProfile.profileUrl],
-                            UserProfile.locationAddress.name to fullProfile[UserProfile.locationAddress],
-                            UserProfile.cardNumber.name to fullProfile[UserProfile.cardNumber],
-                            UserProfile.cardHolderName.name to fullProfile[ UserProfile.cardHolderName],
-                            UserProfile.expiryData.name to fullProfile[UserProfile.expiryData],
-                            UserProfile.securityCode.name to fullProfile[UserProfile.securityCode]
-                    )
+
+                    val completeProfile = UserProfile.select { (UserProfile.id eq userId.toInt()) }.singleOrNull()
+                    if (completeProfile != null) {
+                        val fullProfile = (Users innerJoin UserProfile).slice(
+                                Users.email,
+                                Users.fullName,
+                                UserProfile.profileUrl,
+                                UserProfile.locationAddress,
+                                UserProfile.cardNumber,
+                                UserProfile.cardHolderName,
+                                UserProfile.expiryData,
+                                UserProfile.securityCode
+                        ).select {
+                            Users.id eq userId.toInt()
+                        }.first()
+                        userProfile = mapOf(
+                                Users.email.name to fullProfile[Users.email],
+                                Users.fullName.name to fullProfile[Users.fullName],
+                                UserProfile.profileUrl.name to fullProfile[UserProfile.profileUrl],
+                                UserProfile.locationAddress.name to fullProfile[UserProfile.locationAddress],
+                                UserProfile.cardNumber.name to fullProfile[UserProfile.cardNumber],
+                                UserProfile.cardHolderName.name to fullProfile[UserProfile.cardHolderName],
+                                UserProfile.expiryData.name to fullProfile[UserProfile.expiryData],
+                                UserProfile.securityCode.name to fullProfile[UserProfile.securityCode]
+                        )
+                    }
+                    else{
+                        val fullProfile = Users.selectAll().first()
+                        userProfile = mapOf(
+                                Users.email.name to fullProfile[Users.email],
+                                Users.fullName.name to fullProfile[Users.fullName],
+                                "profile-completed" to false
+                        )
+                    }
                 }
                 call.respond(HttpStatusCode.OK, userProfile)
             }
