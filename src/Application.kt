@@ -32,6 +32,7 @@ import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondText
+import io.ktor.routing.delete
 import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
@@ -178,7 +179,10 @@ fun Application.module(testing: Boolean = false) {
                     val securityCode = formPart["security_code"]
                             ?: throw InvalidCredentialsException("security_code missing")
                     val filePath = formPart["profile_url"] ?: throw InvalidCredentialsException("file missing")
+                    if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                     Users.select { (Users.id eq userId.toInt()) }.singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
+                    val completeProfile = UserProfile.select { (UserProfile.id eq userId.toInt()) }.singleOrNull()
+                    if(completeProfile != null) throw InvalidCredentialsException("Profile is completed.")
                     UserProfile.insert {
                         it[UserProfile.owner] = userId.toInt()
                         it[UserProfile.locationAddress] = locationAddress
@@ -245,6 +249,7 @@ fun Application.module(testing: Boolean = false) {
                 SchemaUtils.create(Posts)
                 for (item in Posts.selectAll()) {
                     posts.add(mapOf(
+                            Posts.id.name to item[Posts.id],
                             Posts.owner.name to item[Posts.owner],
                             Posts.title.name to item[Posts.title],
                             Posts.description.name to item[Posts.description],
@@ -257,6 +262,22 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
             call.respond(HttpStatusCode.OK, posts)
+        }
+        authenticate {
+            delete("/delete-post") {
+                val parameters = call.receiveParameters()
+                transaction {
+                    SchemaUtils.create(Users)
+                    SchemaUtils.create(Posts)
+                    val userId = parameters["user_id"] ?: throw InvalidCredentialsException("user_id missing")
+                    val postId = parameters["post_id"] ?: throw InvalidCredentialsException("post_id missing")
+                    if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
+                    Users.select { (Users.id eq userId.toInt()) }.singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
+                    Posts.select { (Posts.id eq postId.toInt()) }.singleOrNull() ?: throw InvalidCredentialsException("post doesn't exist.")
+                    Posts.deleteWhere {(Posts.owner eq userId.toInt()) and (Posts.id eq postId.toInt())}
+                }
+                call.respond(HttpStatusCode.OK, mapOf("OK" to true, "post deleted" to (true)))
+            }
         }
         authenticate {
             post("/create-post") {
@@ -302,7 +323,7 @@ fun Application.module(testing: Boolean = false) {
                     val price = formPart["price"] ?: throw InvalidCredentialsException("price missing")
                     val priceType = formPart["price_type"] ?: throw InvalidCredentialsException("price type missing")
                     val filePath = formPart["url"] ?: throw InvalidCredentialsException("file missing")
-
+                    if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                     Users.select { (Users.id eq userId.toInt()) }.singleOrNull()
                             ?: throw InvalidCredentialsException("user_id doesn't exist.")
                     Posts.insert {
@@ -322,7 +343,6 @@ fun Application.module(testing: Boolean = false) {
     }
 
 }
-data class Credentials(val email:String,val password:String)
 
 open class SimpleJWT(secret: String) {
     private val algorithm = Algorithm.HMAC256(secret)
