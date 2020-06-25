@@ -3,31 +3,28 @@ package com.example
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
-import com.auth0.jwt.interfaces.DecodedJWT
 import com.example.retrofit.ApiClient
-import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.google.gson.JsonParser
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.auth.*
+import io.ktor.auth.Authentication
+import io.ktor.auth.UserIdPrincipal
+import io.ktor.auth.authenticate
 import io.ktor.auth.jwt.jwt
+import io.ktor.auth.principal
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
-import io.ktor.gson.gson
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.Parameters
-import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.http.content.streamProvider
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
-import io.ktor.request.receive
 import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
@@ -51,7 +48,6 @@ import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.io.ByteArrayOutputStream
 import java.sql.Connection
-import java.text.DateFormat
 import java.util.Date
 
 fun main(args: Array<String>) {
@@ -91,7 +87,6 @@ fun Application.module(testing: Boolean = false) {
     }
     install(ContentNegotiation) {
         jackson {
-            // Configure Jackson's ObjectMapper here
             enable(SerializationFeature.INDENT_OUTPUT)
         }
         register(ContentType.Application.Json, JacksonConverter())
@@ -169,12 +164,10 @@ fun Application.module(testing: Boolean = false) {
                 transaction {
                     SchemaUtils.create(Users)
                     SchemaUtils.create(UserProfile)
-
                     val userId = formPart["user_id"] ?: throw InvalidCredentialsException("user_id missing")
                     val locationAddress = formPart["address"] ?: throw InvalidCredentialsException("address missing")
                     val cardNumber = formPart["card_number"] ?: throw InvalidCredentialsException("card_number missing")
-                    val cardHolderName = formPart["card_holder_name"]
-                            ?: throw InvalidCredentialsException("card_holder_name missing")
+                    val cardHolderName = formPart["card_holder_name"] ?: throw InvalidCredentialsException("card_holder_name missing")
                     val expiryData = formPart["expiry_date"] ?: throw InvalidCredentialsException("expiry_date missing")
                     val securityCode = formPart["security_code"]
                             ?: throw InvalidCredentialsException("security_code missing")
@@ -226,8 +219,7 @@ fun Application.module(testing: Boolean = false) {
                                 UserProfile.cardNumber.name to fullProfile[UserProfile.cardNumber],
                                 UserProfile.cardHolderName.name to fullProfile[UserProfile.cardHolderName],
                                 UserProfile.expiryData.name to fullProfile[UserProfile.expiryData],
-                                UserProfile.securityCode.name to fullProfile[UserProfile.securityCode]
-                        )
+                                UserProfile.securityCode.name to fullProfile[UserProfile.securityCode])
                     }
                     else{
                         val fullProfile = Users.selectAll().first()
@@ -248,17 +240,22 @@ fun Application.module(testing: Boolean = false) {
                 SchemaUtils.create(Users)
                 SchemaUtils.create(Posts)
                 for (item in Posts.selectAll()) {
-                    posts.add(mapOf(
+                    val urlArray = arrayListOf<String>()
+                    for(postUrl in PostUrls.select(PostUrls.owner eq item[Posts.id])){
+                        urlArray.add(postUrl[PostUrls.url])
+                    }
+                    val postMap = mapOf(
                             Posts.id.name to item[Posts.id],
                             Posts.owner.name to item[Posts.owner],
                             Posts.title.name to item[Posts.title],
                             Posts.description.name to item[Posts.description],
                             Posts.categoryID.name to item[Posts.categoryID],
-                            Posts.url.name to item[Posts.url],
+                            "urls" to urlArray,
                             Posts.tags.name to item[Posts.tags],
                             Posts.price.name to item[Posts.price],
                             Posts.priceType.name to item[Posts.priceType]
-                    ))
+                    )
+                    posts.add(postMap)
                 }
             }
             call.respond(HttpStatusCode.OK, posts)
@@ -283,6 +280,7 @@ fun Application.module(testing: Boolean = false) {
             post("/create-post") {
                 val multipart = call.receiveMultipart()
                 val formPart = mutableMapOf<String, String>()
+                val arrayList = arrayListOf<String>()
                 multipart.forEachPart { part ->
                     when (part) {
                         is PartData.FormItem -> {
@@ -302,7 +300,8 @@ fun Application.module(testing: Boolean = false) {
                             val string = ApiClient.getApiClient.uploadData(photo, map)
                             val jsonObject = JsonParser().parse(string).asJsonObject
                             val url = jsonObject.get("url")
-                            formPart["url"] = url.asString
+                            arrayList.add(url.asString)
+                            //formPart["url"] = url.asString
                         }
                         is PartData.BinaryItem -> {
                             "BinaryItem(${part.name},${hex(part.provider().readBytes())})"
@@ -314,6 +313,7 @@ fun Application.module(testing: Boolean = false) {
                 transaction {
                     SchemaUtils.create(Users)
                     SchemaUtils.create(Posts)
+                    SchemaUtils.create(PostUrls)
                     val userId = formPart["user_id"] ?: throw InvalidCredentialsException("user_id missing")
                     val title = formPart["title"] ?: throw InvalidCredentialsException("title missing")
                     val description = formPart["description"]
@@ -322,11 +322,12 @@ fun Application.module(testing: Boolean = false) {
                     val tags = formPart["tags"] ?: throw InvalidCredentialsException("tags missing")
                     val price = formPart["price"] ?: throw InvalidCredentialsException("price missing")
                     val priceType = formPart["price_type"] ?: throw InvalidCredentialsException("price type missing")
-                    val filePath = formPart["url"] ?: throw InvalidCredentialsException("file missing")
+                    //val filePath = formPart["url"] ?: throw InvalidCredentialsException("file missing")
+                    if(arrayList.size == 0) throw InvalidCredentialsException("file missing")
                     if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                     Users.select { (Users.id eq userId.toInt()) }.singleOrNull()
                             ?: throw InvalidCredentialsException("user_id doesn't exist.")
-                    Posts.insert {
+                    val postId = Posts.insert {
                         it[owner] = userId.toInt()
                         it[Posts.title] = title
                         it[Posts.description] = description
@@ -334,7 +335,14 @@ fun Application.module(testing: Boolean = false) {
                         it[Posts.tags] = tags
                         it[Posts.price] = price.toFloat()
                         it[Posts.priceType] = priceType
-                        it[url] = filePath
+                       // it[url] = filePath
+                    } get Posts.id
+
+                    for(url in arrayList) {
+                        PostUrls.insert {
+                            it[PostUrls.owner] = postId
+                            it[PostUrls.url] = url
+                        }
                     }
                 }
                 call.respond(HttpStatusCode.OK, mapOf("OK" to true, "posted" to (true)))
@@ -349,8 +357,7 @@ open class SimpleJWT(secret: String) {
     val verifier: JWTVerifier = JWT.require(algorithm).build()
     fun sign(id: Int): String = JWT.create().withClaim("user_id", id).withExpiresAt(expiresAt()).sign(algorithm)
 }
-private fun expiresAt() =
-        Date(System.currentTimeMillis() + 3_600_000 * 24) // 24 hours
+private fun expiresAt() = Date(System.currentTimeMillis() + 3_600_000 * 24) // 24 hours
 
 object Users : Table() {
     val id = integer("id").autoIncrement().primaryKey()
@@ -365,7 +372,7 @@ object Posts : Table() {
     val title = varchar("title", length = 80) // Column<String>
     val description = varchar("description", length = 250) // Column<String>
     val categoryID = integer("category_id")
-    val url = varchar("url", length = 80)
+ //   val url = varchar("url", length = 80)
     val tags = varchar("tags",length = 120)
     val price = float("price")
     val priceType = varchar("price_type",length = 80)
@@ -381,4 +388,10 @@ object UserProfile: Table(){
     val cardHolderName = varchar("card_holder_name", length = 120)
     val expiryData = varchar("expiry_date", length = 40)
     val securityCode = varchar("security_code", length = 40)
+}
+
+object  PostUrls: Table(){
+    val id = integer("id").autoIncrement().primaryKey()
+    val owner = integer("owner").references(Posts.id, ReferenceOption.CASCADE)
+    val url = varchar("url", length = 80)
 }
