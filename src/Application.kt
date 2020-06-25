@@ -234,6 +234,15 @@ fun Application.module(testing: Boolean = false) {
             }
 
         }
+        post("/products") {
+            val posts = mutableListOf<Map<String, Any>>()
+            val map = mapOf(
+                    "product_id" to "1",
+                    "product_name" to "tualetis qagaldi",
+                    "price" to "2000"
+            )
+            call.respond(HttpStatusCode.OK, map)
+        }
         get("/posts") {
             val posts = mutableListOf<Map<String, Any>>()
             transaction {
