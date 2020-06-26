@@ -41,6 +41,7 @@ import io.ktor.utils.io.core.readBytes
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.apache.http.auth.AuthenticationException
 import org.apache.http.auth.InvalidCredentialsException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -66,7 +67,7 @@ fun Application.module(testing: Boolean = false) {
 
     install(StatusPages) {
         exception<InvalidCredentialsException> { exception ->
-            call.respond(HttpStatusCode.Unauthorized, mapOf("OK" to false, "error" to (exception.message ?: "")))
+            call.respond(HttpStatusCode.BadRequest, mapOf("OK" to false, "error" to (exception.message ?: "")))
         }
     }
 
@@ -195,7 +196,6 @@ fun Application.module(testing: Boolean = false) {
                 var userProfile = mapOf<String,Any>()
                 transaction {
                     SchemaUtils.create(Users)
-                    SchemaUtils.create(Posts)
                     SchemaUtils.create(UserProfile)
 
                     val completeProfile = UserProfile.select { (UserProfile.id eq userId.toInt()) }.singleOrNull()
