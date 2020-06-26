@@ -196,6 +196,7 @@ fun Application.module(testing: Boolean = false) {
                 transaction {
                     SchemaUtils.create(Users)
                     SchemaUtils.create(Posts)
+                    SchemaUtils.create(UserProfile)
 
                     val completeProfile = UserProfile.select { (UserProfile.id eq userId.toInt()) }.singleOrNull()
                     if (completeProfile != null) {
