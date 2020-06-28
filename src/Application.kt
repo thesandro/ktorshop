@@ -41,7 +41,6 @@ import io.ktor.utils.io.core.readBytes
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.apache.http.auth.AuthenticationException
 import org.apache.http.auth.InvalidCredentialsException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -110,7 +109,6 @@ fun Application.module(testing: Boolean = false) {
                 userID = user[Users.id]
             }
             call.respond(HttpStatusCode.OK, mapOf("user_id" to userID,"token" to simpleJwt.sign(userID)))
-            //call.respond(HttpStatusCode.OK, mapOf("token" to userID))
         }
         post("/register") {
             val parameters = call.receiveParameters()
@@ -172,7 +170,7 @@ fun Application.module(testing: Boolean = false) {
                     val expiryData = formPart["expiry_date"] ?: throw InvalidCredentialsException("expiry_date missing")
                     val securityCode = formPart["security_code"]
                             ?: throw InvalidCredentialsException("security_code missing")
-                    val filePath = formPart["profile_url"] ?: throw InvalidCredentialsException("file missing")
+                    val profileUrl = formPart["profile_url"] ?: throw InvalidCredentialsException("file missing")
                     if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                     Users.select { (Users.id eq userId.toInt()) }.singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
                     val completeProfile = UserProfile.select { (UserProfile.id eq userId.toInt()) }.singleOrNull()
@@ -180,7 +178,7 @@ fun Application.module(testing: Boolean = false) {
                     UserProfile.insert {
                         it[UserProfile.owner] = userId.toInt()
                         it[UserProfile.locationAddress] = locationAddress
-                        it[UserProfile.profileUrl] = filePath
+                        it[UserProfile.profileUrl] = profileUrl
                         it[UserProfile.cardNumber] = cardNumber
                         it[UserProfile.cardHolderName] = cardHolderName
                         it[UserProfile.expiryData] = expiryData
@@ -238,9 +236,10 @@ fun Application.module(testing: Boolean = false) {
         post("/products") {
             val posts = mutableListOf<Map<String, Any>>()
             val map = mapOf(
-                    "product_id" to "1",
-                    "product_name" to "tualetis qagaldi",
-                    "price" to "2000"
+                    "barcode" to "1111111112",
+                    "name" to "შაურმა",
+                    "price" to "200000",
+                    "measurement" to "ცალი"
             )
             call.respond(HttpStatusCode.OK, map)
         }
@@ -311,7 +310,6 @@ fun Application.module(testing: Boolean = false) {
                             val jsonObject = JsonParser().parse(string).asJsonObject
                             val url = jsonObject.get("url")
                             arrayList.add(url.asString)
-                            //formPart["url"] = url.asString
                         }
                         is PartData.BinaryItem -> {
                             "BinaryItem(${part.name},${hex(part.provider().readBytes())})"
