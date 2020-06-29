@@ -196,6 +196,7 @@ fun Application.module(testing: Boolean = false) {
                     SchemaUtils.create(Users)
                     SchemaUtils.create(UserProfile)
 
+
                     val completeProfile = UserProfile.select { (UserProfile.id eq userId.toInt()) }.singleOrNull()
                     if (completeProfile != null) {
                         val fullProfile = (Users innerJoin UserProfile).slice(
@@ -221,7 +222,7 @@ fun Application.module(testing: Boolean = false) {
                                 UserProfile.securityCode.name to fullProfile[UserProfile.securityCode])
                     }
                     else{
-                        val fullProfile = Users.selectAll().first()
+                        val fullProfile = Users.select(Users.id eq userId.toInt()).first()
                         userProfile = mapOf(
                                 Users.email.name to fullProfile[Users.email],
                                 Users.fullName.name to fullProfile[Users.fullName],
