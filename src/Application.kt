@@ -191,6 +191,7 @@ fun Application.module(testing: Boolean = false) {
             post("profile"){
                 val parameters = call.receiveParameters()
                 val userId = parameters["user_id"] ?: throw InvalidCredentialsException("user_id missing")
+                if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                 var userProfile = mapOf<String,Any>()
                 transaction {
                     SchemaUtils.create(Users)
@@ -277,6 +278,7 @@ fun Application.module(testing: Boolean = false) {
                     SchemaUtils.create(Users)
                     SchemaUtils.create(Posts)
                     val userId = parameters["user_id"] ?: throw InvalidCredentialsException("user_id missing")
+                    if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                     val postId = parameters["post_id"] ?: throw InvalidCredentialsException("post_id missing")
                     if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                     Users.select { (Users.id eq userId.toInt()) }.singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
