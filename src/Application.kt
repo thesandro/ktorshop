@@ -222,7 +222,7 @@ fun Application.module(testing: Boolean = false) {
                                 UserProfile.securityCode.name to fullProfile[UserProfile.securityCode])
                     }
                     else{
-                        val fullProfile = Users.select(Users.id eq userId.toInt()).first()
+                        val fullProfile = Users.select(Users.id eq userId.toInt()).singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
                         userProfile = mapOf(
                                 Users.email.name to fullProfile[Users.email],
                                 Users.fullName.name to fullProfile[Users.fullName],
