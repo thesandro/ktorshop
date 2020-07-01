@@ -6,6 +6,8 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.example.retrofit.ApiClient
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.google.gson.JsonParser
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
@@ -80,7 +82,15 @@ fun Application.module(testing: Boolean = false) {
             }
         }
     }
+//    val config = HikariConfig().apply {
+//        jdbcUrl = "jdbc:postgres://ycnqzralkwroay:945ca5dce3e01e3e898fe86e3ccf5332c23ab272bcba8067134f52842cfa067e@ec2-54-247-79-178.eu-west-1.compute.amazonaws.com:5432/d28v9c666f8j2t"
+//        username = "ycnqzralkwroay"
+//        password = "945ca5dce3e01e3e898fe86e3ccf5332c23ab272bcba8067134f52842cfa067e"
+//        driverClassName = "org.postgresql.Driver"
+//    }
+//    Database.connect(HikariDataSource(config))
     Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
+
     TransactionManager.manager.defaultIsolationLevel =
             Connection.TRANSACTION_SERIALIZABLE
     HttpClient(Apache) {
@@ -199,7 +209,7 @@ fun Application.module(testing: Boolean = false) {
                     SchemaUtils.create(UserProfile)
 
 
-                    val completeProfile = UserProfile.select { (UserProfile.id eq userId.toInt()) }.singleOrNull()
+                    val completeProfile = UserProfile.select { (UserProfile.owner eq userId.toInt()) }.singleOrNull()
                     if (completeProfile != null) {
                         val fullProfile = (Users innerJoin UserProfile).slice(
                                 Users.email,
