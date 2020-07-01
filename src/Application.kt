@@ -168,8 +168,8 @@ fun Application.module(testing: Boolean = false) {
                     val cardNumber = formPart["card_number"] ?: throw InvalidCredentialsException("card_number missing")
                     val cardHolderName = formPart["card_holder_name"] ?: throw InvalidCredentialsException("card_holder_name missing")
                     val expiryData = formPart["expiry_date"] ?: throw InvalidCredentialsException("expiry_date missing")
-                    val securityCode = formPart["security_code"]
-                            ?: throw InvalidCredentialsException("security_code missing")
+                    val securityCode = formPart["security_code"] ?: throw InvalidCredentialsException("security_code missing")
+                    val floorApartment = formPart["floor_apartment"] ?: throw InvalidCredentialsException("floor_apartment missing")
                     val profileUrl = formPart["profile_url"] ?: throw InvalidCredentialsException("file missing")
                     if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                     Users.select { (Users.id eq userId.toInt()) }.singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
@@ -183,6 +183,7 @@ fun Application.module(testing: Boolean = false) {
                         it[UserProfile.cardHolderName] = cardHolderName
                         it[UserProfile.expiryData] = expiryData
                         it[UserProfile.securityCode] = securityCode
+                        it[UserProfile.floorApartment] = floorApartment
                         }
                 }
                 call.respond(HttpStatusCode.OK, mapOf("OK" to true, "profile completed" to (true)))
@@ -208,7 +209,8 @@ fun Application.module(testing: Boolean = false) {
                                 UserProfile.cardNumber,
                                 UserProfile.cardHolderName,
                                 UserProfile.expiryData,
-                                UserProfile.securityCode
+                                UserProfile.securityCode,
+                                UserProfile.floorApartment
                         ).select {
                             Users.id eq userId.toInt()
                         }.first()
@@ -220,7 +222,9 @@ fun Application.module(testing: Boolean = false) {
                                 UserProfile.cardNumber.name to fullProfile[UserProfile.cardNumber],
                                 UserProfile.cardHolderName.name to fullProfile[UserProfile.cardHolderName],
                                 UserProfile.expiryData.name to fullProfile[UserProfile.expiryData],
-                                UserProfile.securityCode.name to fullProfile[UserProfile.securityCode])
+                                UserProfile.securityCode.name to fullProfile[UserProfile.securityCode],
+                                UserProfile.floorApartment.name to fullProfile[UserProfile.floorApartment]
+                        )
                     }
                     else{
                         val fullProfile = Users.select(Users.id eq userId.toInt()).singleOrNull() ?: throw InvalidCredentialsException("user_id doesn't exist.")
@@ -399,6 +403,7 @@ object UserProfile: Table(){
     val cardHolderName = varchar("card_holder_name", length = 120)
     val expiryData = varchar("expiry_date", length = 40)
     val securityCode = varchar("security_code", length = 40)
+    val floorApartment = varchar("floor_apartment",length = 80)
 }
 
 object  PostUrls: Table(){
