@@ -57,5 +57,6 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation "io.ktor:ktor-gson:$ktor_version"
     implementation group: 'com.zaxxer', name: 'HikariCP', version: '3.4.5'
+    runtime group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
 
 }

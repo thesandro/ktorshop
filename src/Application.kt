@@ -82,14 +82,17 @@ fun Application.module(testing: Boolean = false) {
             }
         }
     }
-//    val config = HikariConfig().apply {
-//        jdbcUrl = "jdbc:postgres://ycnqzralkwroay:945ca5dce3e01e3e898fe86e3ccf5332c23ab272bcba8067134f52842cfa067e@ec2-54-247-79-178.eu-west-1.compute.amazonaws.com:5432/d28v9c666f8j2t"
+
+    val config = HikariConfig("/hikari.properties")
+//    val config =  HikariConfig().apply {
+//        jdbcUrl = "jdbc:postgresql://ec2-54-247-79-178.eu-west-1.compute.amazonaws.com:5432/d28v9c666f8j2t"
 //        username = "ycnqzralkwroay"
 //        password = "945ca5dce3e01e3e898fe86e3ccf5332c23ab272bcba8067134f52842cfa067e"
-//        driverClassName = "org.postgresql.Driver"
+//
 //    }
-//    Database.connect(HikariDataSource(config))
-    Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
+    Database.connect(HikariDataSource(config))
+    //Database.connect("jdbc:postgresql://localhost:5432/java_database_name","org.postgresql.Driver")
+    //Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
 
     TransactionManager.manager.defaultIsolationLevel =
             Connection.TRANSACTION_SERIALIZABLE
