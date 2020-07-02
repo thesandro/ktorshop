@@ -85,7 +85,7 @@ fun Application.module(testing: Boolean = false) {
 
 
     val config =  HikariConfig().apply {
-        jdbcUrl = "jdbc:postgresql:5432//ec2-54-247-79-178.eu-west-1.compute.amazonaws.com:5432/d28v9c666f8j2t"
+        jdbcUrl = "jdbc:postgresql://ec2-54-247-79-178.eu-west-1.compute.amazonaws.com:5432/d28v9c666f8j2t"
         username = "ycnqzralkwroay"
         password = "945ca5dce3e01e3e898fe86e3ccf5332c23ab272bcba8067134f52842cfa067e"
 
