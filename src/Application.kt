@@ -85,8 +85,9 @@ fun Application.module(testing: Boolean = false) {
 
 
     val config =  HikariConfig().apply {
-        jdbcUrl = "jdbc:postgresql://localhost:5432/postgres"
-        username = "postgres"
+        jdbcUrl = "jdbc:postgresql://localhost:5432/d28v9c666f8j2t"
+        username = "ycnqzralkwroay"
+        password = "945ca5dce3e01e3e898fe86e3ccf5332c23ab272bcba8067134f52842cfa067e"
 
     }
     Database.connect(HikariDataSource(config))
