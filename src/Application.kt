@@ -384,7 +384,7 @@ open class SimpleJWT(secret: String) {
     val verifier: JWTVerifier = JWT.require(algorithm).build()
     fun sign(id: Int): String = JWT.create().withClaim("user_id", id).withExpiresAt(expiresAt()).sign(algorithm)
 }
-private fun expiresAt() = Date(System.currentTimeMillis() + 3_600_000 * 24) // 24 hours
+private fun expiresAt() = Date(System.currentTimeMillis() + 3_600_000 * 24*15) // 24 hours
 
 object Users : Table() {
     val id = integer("id").autoIncrement().primaryKey()
