@@ -3,9 +3,8 @@ package com.example
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
-import com.example.retrofit.ApiClient
+import com.example.tools.uploadToCloudinary
 import com.fasterxml.jackson.databind.SerializationFeature
-import com.google.gson.JsonParser
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.application.Application
@@ -24,7 +23,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
-import io.ktor.http.content.streamProvider
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
 import io.ktor.request.receiveMultipart
@@ -40,15 +38,11 @@ import io.ktor.server.netty.Netty
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.hex
 import io.ktor.utils.io.core.readBytes
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.apache.http.auth.InvalidCredentialsException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.io.ByteArrayOutputStream
 import java.sql.Connection
 import java.util.Date
 
@@ -57,7 +51,6 @@ fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
     val port = System.getenv("PORT")?.toInt() ?: 23567
     embeddedServer(Netty, port) {
-
     }.start(wait = true)
 }
 
@@ -85,16 +78,15 @@ fun Application.module(testing: Boolean = false) {
 
 
     val config =  HikariConfig().apply {
-        jdbcUrl = "jdbc:postgresql://ec2-54-247-79-178.eu-west-1.compute.amazonaws.com:5432/d28v9c666f8j2t"
-        username = "ycnqzralkwroay"
-        password = "945ca5dce3e01e3e898fe86e3ccf5332c23ab272bcba8067134f52842cfa067e"
+        jdbcUrl = "jdbc:postgresql://ec2-54-247-79-178.eu-west-1.compute.amazonaws.com:5432/d64lpav8ohk462"
+        username = "jxhpjhprjnbevz"
+        password = "1990965b8171c02ae030159d22c0db07ef1e30c941e29e6f21b347ac520695f9"
 
     }
     Database.connect(HikariDataSource(config))
    //Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
 
-    TransactionManager.manager.defaultIsolationLevel =
-            Connection.TRANSACTION_SERIALIZABLE
+    TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
     HttpClient(Apache) {
     }
     install(ContentNegotiation) {
@@ -151,20 +143,8 @@ fun Application.module(testing: Boolean = false) {
                             formPart[part.name!!] = part.value
                         }
                         is PartData.FileItem -> {
-                            val name = part.originalFileName!!
-                            val outputStream = ByteArrayOutputStream()
-                            part.streamProvider().use { its ->
-                                outputStream.buffered().use {
-                                    its.copyTo(it)
-                                }
-                            }
-                            val requestFile = outputStream.toByteArray().toRequestBody("multipart/from-data".toMediaTypeOrNull(), 0, outputStream.toByteArray().size)
-                            val photo = MultipartBody.Part.createFormData("file", name, requestFile)
-                            val map = mapOf("upload_preset" to "izwuplfk")
-                            val string = ApiClient.getApiClient.uploadData(photo, map)
-                            val jsonObject = JsonParser().parse(string).asJsonObject
-                            val url = jsonObject.get("url")
-                            formPart["profile_url"] = url.asString
+                            val url = uploadToCloudinary(part)
+                            formPart["profile_url"] = url
                         }
                         is PartData.BinaryItem -> {
                             "BinaryItem(${part.name},${hex(part.provider().readBytes())})"
@@ -315,20 +295,8 @@ fun Application.module(testing: Boolean = false) {
                             formPart[part.name!!] = part.value
                         }
                         is PartData.FileItem -> {
-                            val name = part.originalFileName!!
-                            val outputStream = ByteArrayOutputStream()
-                            part.streamProvider().use { its ->
-                                outputStream.buffered().use {
-                                    its.copyTo(it)
-                                }
-                            }
-                            val requestFile = outputStream.toByteArray().toRequestBody("multipart/from-data".toMediaTypeOrNull(), 0, outputStream.toByteArray().size)
-                            val photo = MultipartBody.Part.createFormData("file", name, requestFile)
-                            val map = mapOf("upload_preset" to "izwuplfk")
-                            val string = ApiClient.getApiClient.uploadData(photo, map)
-                            val jsonObject = JsonParser().parse(string).asJsonObject
-                            val url = jsonObject.get("url")
-                            arrayList.add(url.asString)
+                            val url = uploadToCloudinary(part)
+                            arrayList.add(url)
                         }
                         is PartData.BinaryItem -> {
                             "BinaryItem(${part.name},${hex(part.provider().readBytes())})"
@@ -343,8 +311,7 @@ fun Application.module(testing: Boolean = false) {
                     SchemaUtils.create(PostUrls)
                     val userId = formPart["user_id"] ?: throw InvalidCredentialsException("user_id missing")
                     val title = formPart["title"] ?: throw InvalidCredentialsException("title missing")
-                    val description = formPart["description"]
-                            ?: throw InvalidCredentialsException("description missing")
+                    val description = formPart["description"] ?: throw InvalidCredentialsException("description missing")
                     val categoryID = formPart["category_id"] ?: throw InvalidCredentialsException("category missing")
                     val tags = formPart["tags"] ?: throw InvalidCredentialsException("tags missing")
                     val price = formPart["price"] ?: throw InvalidCredentialsException("price missing")
