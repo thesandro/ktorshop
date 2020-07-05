@@ -231,14 +231,28 @@ fun Application.module(testing: Boolean = false) {
             }
 
         }
-        post("/products") {
+        post("/GetByBarcode") {
             val posts = mutableListOf<Map<String, Any>>()
-            val map = mapOf(
-                    "barcode" to "1111111112",
-                    "name" to "შაურმა",
-                    "price" to "200000",
-                    "measurement" to "ცალი"
-            )
+            val map = arrayOf(mapOf(
+                            "barcode" to "1111111112",
+                            "name" to "შაურმა",
+                            "price" to "200000",
+                            "measurement" to "ცალი"
+                    ),
+                    mapOf(
+                            "barcode" to "42242424",
+                            "name" to "მწვადი",
+                            "price" to "50",
+                            "measurement" to "ცალი"
+                    )
+                    ,
+                    mapOf(
+                            "barcode" to "75765868",
+                            "name" to "მწვადი",
+                            "price" to "4242",
+                            "measurement" to "ცალი"
+                    )
+            ).random()
             call.respond(HttpStatusCode.OK, map)
         }
         get("/posts") {
