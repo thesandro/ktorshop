@@ -3,8 +3,15 @@ package com.example
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
+import com.example.Posts.references
+import com.example.UserProfile.autoIncrement
+import com.example.UserProfile.primaryKey
+import com.example.UserProfile.references
+import com.example.UserProfile.uniqueIndex
 import com.example.tools.uploadToCloudinary
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.application.Application
@@ -17,6 +24,14 @@ import io.ktor.auth.jwt.jwt
 import io.ktor.auth.principal
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
+import io.ktor.client.features.logging.DEFAULT
+import io.ktor.client.features.logging.LogLevel
+import io.ktor.client.features.logging.Logger
+import io.ktor.client.features.logging.Logging
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.header
+import io.ktor.client.request.headers
+import io.ktor.client.request.post
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
 import io.ktor.http.ContentType
@@ -38,7 +53,10 @@ import io.ktor.server.netty.Netty
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.hex
 import io.ktor.utils.io.core.readBytes
+import kotlinx.css.header
+import org.apache.http.Header
 import org.apache.http.auth.InvalidCredentialsException
+import org.h2.util.json.JSONObject
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.TransactionManager
@@ -77,14 +95,14 @@ fun Application.module(testing: Boolean = false) {
     }
 
 
-    val config =  HikariConfig().apply {
-        jdbcUrl = "jdbc:postgresql://ec2-46-137-123-136.eu-west-1.compute.amazonaws.com:5432/d64lpav8ohk462"
-        username = "jxhpjhprjnbevz"
-        password = "1990965b8171c02ae030159d22c0db07ef1e30c941e29e6f21b347ac520695f9"
-
-    }
-    Database.connect(HikariDataSource(config))
-   //Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
+//    val config =  HikariConfig().apply {
+//        jdbcUrl = "jdbc:postgresql://ec2-46-137-123-136.eu-west-1.compute.amazonaws.com:5432/d64lpav8ohk462"
+//        username = "jxhpjhprjnbevz"
+//        password = "1990965b8171c02ae030159d22c0db07ef1e30c941e29e6f21b347ac520695f9"
+//
+//    }
+//    Database.connect(HikariDataSource(config))
+    Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
 
     TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
     HttpClient(Apache) {
@@ -318,24 +336,23 @@ fun Application.module(testing: Boolean = false) {
                     }
                     part.dispose()
                 }
-
+                val userId = formPart["user_id"] ?: throw InvalidCredentialsException("user_id missing")
+                val title = formPart["title"] ?: throw InvalidCredentialsException("title missing")
+                val description = formPart["description"] ?: throw InvalidCredentialsException("description missing")
+                val categoryID = formPart["category_id"] ?: throw InvalidCredentialsException("category missing")
+                val tags = formPart["tags"] ?: throw InvalidCredentialsException("tags missing")
+                val price = formPart["price"] ?: throw InvalidCredentialsException("price missing")
+                val priceType = formPart["price_type"] ?: throw InvalidCredentialsException("price type missing")
+                var postId = -1
                 transaction {
                     SchemaUtils.create(Users)
                     SchemaUtils.create(Posts)
                     SchemaUtils.create(PostUrls)
-                    val userId = formPart["user_id"] ?: throw InvalidCredentialsException("user_id missing")
-                    val title = formPart["title"] ?: throw InvalidCredentialsException("title missing")
-                    val description = formPart["description"] ?: throw InvalidCredentialsException("description missing")
-                    val categoryID = formPart["category_id"] ?: throw InvalidCredentialsException("category missing")
-                    val tags = formPart["tags"] ?: throw InvalidCredentialsException("tags missing")
-                    val price = formPart["price"] ?: throw InvalidCredentialsException("price missing")
-                    val priceType = formPart["price_type"] ?: throw InvalidCredentialsException("price type missing")
-                    //val filePath = formPart["url"] ?: throw InvalidCredentialsException("file missing")
                     if(arrayList.size == 0) throw InvalidCredentialsException("file missing")
                     if(call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
                     Users.select { (Users.id eq userId.toInt()) }.singleOrNull()
                             ?: throw InvalidCredentialsException("user_id doesn't exist.")
-                    val postId = Posts.insert {
+                    postId = Posts.insert {
                         it[owner] = userId.toInt()
                         it[Posts.title] = title
                         it[Posts.description] = description
@@ -343,7 +360,6 @@ fun Application.module(testing: Boolean = false) {
                         it[Posts.tags] = tags
                         it[Posts.price] = price.toFloat()
                         it[Posts.priceType] = priceType
-                       // it[url] = filePath
                     } get Posts.id
 
                     for(url in arrayList) {
@@ -353,8 +369,55 @@ fun Application.module(testing: Boolean = false) {
                         }
                     }
                 }
+                val client = HttpClient(Apache) {
+                    install(Logging) {
+                        logger = Logger.DEFAULT
+                        level = LogLevel.BODY
+                    }
+                }
+                val map = mapOf(
+                        "app_id" to "41bcc35a-a29c-4ada-8a2b-4e9da2470dbd\n",
+                        "contents" to mapOf("en" to title),
+                        "headings" to mapOf("en" to "New Post!"),
+                        "url" to "https://onesignal.com",
+                        "included_segments" to arrayOf("All"),
+                        "data" to mapOf(Posts.id.name to postId))
+                client.post<String>("https://onesignal.com/api/v1/notifications") {
+                    headers {
+                        header("Authorization","Basic MzgwOTFhZWQtNjY2Ni00ZTYwLWEzYTMtNmYxZjA3YjRkYjk0")
+                        header("Content-Type","application/json")
+                    }
+                    val gson = Gson()
+                    body = gson.toJson(map).toString()
+                }
                 call.respond(HttpStatusCode.OK, mapOf("OK" to true, "posted" to (true)))
             }
+        }
+
+        post("/get-post-detail") {
+            val parameters = call.receiveParameters()
+            val postMap = mutableMapOf<String,Any>()
+            transaction {
+                SchemaUtils.create(Users)
+                SchemaUtils.create(Posts)
+                val postId = parameters["post_id"] ?: throw InvalidCredentialsException("post_id missing")
+                val post = Posts.select { (Posts.id eq postId.toInt()) }.singleOrNull() ?: throw InvalidCredentialsException("post doesn't exist.")
+                val urlArray = arrayListOf<String>()
+                for(postUrl in PostUrls.select(PostUrls.owner eq post[Posts.id])){
+                    urlArray.add(postUrl[PostUrls.url])
+                }
+                postMap[Posts.id.name] = post[Posts.id]
+                postMap[Posts.owner.name] = post[Posts.owner]
+                postMap[Posts.title.name] = post[Posts.title]
+                postMap[Posts.description.name] = post[Posts.description]
+                postMap[Posts.categoryID.name] = post[Posts.categoryID]
+                postMap["urls"] = urlArray
+                postMap[Posts.tags.name] = post[Posts.tags]
+                postMap[Posts.price.name] = post[Posts.price]
+                postMap[Posts.priceType.name] = post[Posts.priceType]
+            }
+
+            call.respond(HttpStatusCode.OK, postMap)
         }
     }
 
@@ -380,12 +443,10 @@ object Posts : Table() {
     val title = varchar("title", length = 80) // Column<String>
     val description = varchar("description", length = 250) // Column<String>
     val categoryID = integer("category_id")
- //   val url = varchar("url", length = 80)
     val tags = varchar("tags",length = 120)
     val price = float("price")
     val priceType = varchar("price_type",length = 80)
 }
-
 
 object UserProfile: Table(){
     val id = integer("id").autoIncrement().primaryKey()
@@ -398,6 +459,7 @@ object UserProfile: Table(){
     val securityCode = varchar("security_code", length = 40)
     val floorApartment = varchar("floor_apartment",length = 80)
 }
+
 
 object  PostUrls: Table(){
     val id = integer("id").autoIncrement().primaryKey()
