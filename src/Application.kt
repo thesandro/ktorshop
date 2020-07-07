@@ -386,7 +386,7 @@ fun Application.module(testing: Boolean = false) {
                                 "action_id" to "1",
                                 "title" to "New post!",
                                 "description" to title,
-                                Posts.id.name to postId
+                                "post_id" to postId
                         )
                 )
                 client.post<String>("https://onesignal.com/api/v1/notifications") {
