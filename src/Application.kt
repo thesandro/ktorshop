@@ -376,7 +376,7 @@ fun Application.module(testing: Boolean = false) {
                     }
                 }
                 val map = mapOf(
-                        "app_id" to "41bcc35a-a29c-4ada-8a2b-4e9da2470dbd\n",
+                        "app_id" to "41bcc35a-a29c-4ada-8a2b-4e9da2470dbd",
                         "contents" to mapOf("en" to title),
                         "headings" to mapOf("en" to "New Post!"),
                         "url" to "https://onesignal.com",
