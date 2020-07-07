@@ -383,7 +383,7 @@ fun Application.module(testing: Boolean = false) {
                         "content_available" to true, // for silent
                         "included_segments" to arrayOf("All"),
                         "data" to mapOf(
-                                "actionId" to "1",
+                                "action_id" to "1",
                                 "title" to "New post!",
                                 "description" to title,
                                 Posts.id.name to postId
