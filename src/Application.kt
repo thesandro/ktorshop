@@ -40,6 +40,8 @@ import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.jackson.JacksonConverter
 import io.ktor.jackson.jackson
+import io.ktor.request.receive
+import io.ktor.request.receiveChannel
 import io.ktor.request.receiveMultipart
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
@@ -273,6 +275,14 @@ fun Application.module(testing: Boolean = false) {
             ).random()
             call.respond(HttpStatusCode.OK, map)
         }
+
+        post("/sell") {
+            val paramters = call.receive<String>()
+            print(paramters)
+            call.respond(HttpStatusCode.OK)
+        }
+
+
         get("/posts") {
             val posts = mutableListOf<Map<String, Any>>()
             transaction {
