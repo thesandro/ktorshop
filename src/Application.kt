@@ -302,7 +302,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
 
-        post("/animalFacts"){
+        get("/animalFacts"){
             val posts = mutableListOf<Map<String, Any>>()
             val map = arrayOf(mapOf(
                     "animal" to "cat",
