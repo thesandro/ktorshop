@@ -276,6 +276,47 @@ fun Application.module(testing: Boolean = false) {
             call.respond(HttpStatusCode.OK, map)
         }
 
+        post("/GetByBarcode") {
+            val posts = mutableListOf<Map<String, Any>>()
+            val map = arrayOf(mapOf(
+                    "barcode" to "1111111112",
+                    "name" to "შაურმა",
+                    "price" to "200000",
+                    "measurement" to "ცალი"
+            ),
+                    mapOf(
+                            "barcode" to "42242424",
+                            "name" to "მწვადი",
+                            "price" to "50",
+                            "measurement" to "ცალი"
+                    )
+                    ,
+                    mapOf(
+                            "barcode" to "75765868",
+                            "name" to "მწვადი",
+                            "price" to "4242",
+                            "measurement" to "ცალი"
+                    )
+            ).random()
+            call.respond(HttpStatusCode.OK, map)
+        }
+
+
+        post("/animalFacts"){
+            val posts = mutableListOf<Map<String, Any>>()
+            val map = arrayOf(mapOf(
+                    "animal" to "cat",
+                    "photo" to "https://ichef.bbci.co.uk/news/1024/cpsprodpb/83D7/production/_111515733_gettyimages-1208779325.jpg"
+            ),
+                    mapOf(
+                            "animal" to "dog",
+                            "photo" to "https://i.insider.com/5484d9d1eab8ea3017b17e29?width=600&format=jpeg&auto=webp"
+                    )
+            ).random()
+            call.respond(HttpStatusCode.OK, map)
+        }
+
+
         post("/sell") {
             val paramters = call.receive<String>()
             print(paramters)
