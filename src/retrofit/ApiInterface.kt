@@ -1,4 +1,4 @@
-package com.example.retrofit
+package com.highsteaks.retrofit
 
 import okhttp3.MultipartBody
 import retrofit2.http.Multipart
