@@ -41,7 +41,7 @@ fun Route.register(){
             val email = parameters["email"]!!
             val password = parameters["password"]!!
             val fullName = parameters["full_name"]!!
-            val user = Users.select { (Users.email eq email) and (Users.password eq password) }
+            val user = Users.select { (Users.email eq email) }
                 .singleOrNull()
             if (user != null) throw InvalidCredentialsException("Email already registered.")
             Users.insert {
