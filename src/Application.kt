@@ -64,7 +64,7 @@ fun Application.module(testing: Boolean = false) {
 
     }
     Database.connect(HikariDataSource(config))
-   // Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
+//   Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
 
     TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
     HttpClient(Apache) {
