@@ -33,7 +33,6 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 
-@KtorExperimentalAPI
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
 

@@ -1,1 +1,1 @@
-web: build/install/ktorshop/bin/ktorshop
+web: build/install/example/bin/example
