@@ -17,13 +17,19 @@ import io.ktor.jackson.*
 import io.ktor.response.*
 import io.ktor.routing.get
 import io.ktor.routing.routing
+import io.ktor.serialization.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.util.*
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import org.apache.http.auth.InvalidCredentialsException
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import java.sql.Connection
+
 
 fun main(args: Array<String>) {
 
@@ -32,7 +38,10 @@ fun main(args: Array<String>) {
     embeddedServer(Netty, port) {
     }.start(wait = true)
 }
+@Serializable
+data class Person(val name:String,val surname:String,val age:Int,val hobby:String,val ragaca:String)
 
+@OptIn(ExperimentalSerializationApi::class)
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
 
@@ -56,14 +65,14 @@ fun Application.module(testing: Boolean = false) {
         }
     }
 
-    val config =  HikariConfig().apply {
-        jdbcUrl = "jdbc:postgresql://ec2-46-137-123-136.eu-west-1.compute.amazonaws.com:5432/d64lpav8ohk462"
-        username = "jxhpjhprjnbevz"
-        password = "1990965b8171c02ae030159d22c0db07ef1e30c941e29e6f21b347ac520695f9"
-
-    }
-    Database.connect(HikariDataSource(config))
-//   Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
+//    val config =  HikariConfig().apply {
+//        jdbcUrl = "jdbc:postgresql://ec2-46-137-123-136.eu-west-1.compute.amazonaws.com:5432/d64lpav8ohk462"
+//        username = "jxhpjhprjnbevz"
+//        password = "1990965b8171c02ae030159d22c0db07ef1e30c941e29e6f21b347ac520695f9"
+//
+//    }
+//    Database.connect(HikariDataSource(config))
+   Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
 
     TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
     HttpClient(Apache) {
@@ -72,13 +81,23 @@ fun Application.module(testing: Boolean = false) {
         jackson {
             enable(SerializationFeature.INDENT_OUTPUT)
         }
+        serialization(ContentType.Application.ProtoBuf, ProtoBuf.Default)
         register(ContentType.Application.Json, JacksonConverter())
         register(ContentType.MultiPart.Any, JacksonConverter())
     }
 
+
     routing {
         get("/") {
             call.respondText("Twas me who was born!", contentType = ContentType.Text.CSS)
+        }
+
+        get("/protoBuf"){
+            val protoBuf = ProtoBuf.encodeToByteArray(Person("Sandro","Kakhetelidze",15,"huba","ragaca"))
+            call.respond(protoBuf)
+        }
+        get("/noProtoBuf"){
+            call.respond(Person("Sandro","Kakhetelidze",15,"huba","ragaca"))
         }
         //routes
         register()
