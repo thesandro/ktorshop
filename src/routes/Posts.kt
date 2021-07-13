@@ -30,13 +30,14 @@ fun Route.posts(){
     get("/posts") {
         val responseMap = mutableMapOf<String,Any>()
         val resultList = mutableListOf<Map<String, Any>>()
+        val hasPage = call.request.queryParameters["page"].isNullOrEmpty()
         transaction {
             SchemaUtils.create(Users)
             SchemaUtils.create(Posts)
 
             val postPerPage = 5
             val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
-            val postQuery = if(call.request.queryParameters["page"].isNullOrEmpty()){
+            val postQuery = if(!hasPage){
                 Posts.selectAll()
             }
             else{
@@ -71,7 +72,10 @@ fun Route.posts(){
                 responseMap["nextPage"] = page+1
             }
         }
-        call.respond(HttpStatusCode.OK, responseMap)
+        if(hasPage)
+            call.respond(HttpStatusCode.OK, responseMap)
+        else
+            call.respond(HttpStatusCode.OK,resultList)
     }
 }
 
