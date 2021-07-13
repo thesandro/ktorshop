@@ -31,3 +31,21 @@ suspend fun uploadToCloudinary(part: PartData.FileItem): ImageUrl {
     val format = jsonObject.get("format").asString
     return ImageUrl(url = url, height = height, width = width, format = format)
 }
+
+suspend fun uploadToCloudinaryWithoutDimensions(part: PartData.FileItem): String {
+    val name = part.originalFileName!!
+    val outputStream = ByteArrayOutputStream()
+    part.streamProvider().use { its ->
+        outputStream.buffered().use {
+            its.copyTo(it)
+        }
+    }
+    val requestFile = outputStream.toByteArray()
+        .toRequestBody("multipart/from-data".toMediaTypeOrNull(), 0, outputStream.toByteArray().size)
+    val photo = MultipartBody.Part.createFormData("file", name, requestFile)
+    val map = mapOf("upload_preset" to "izwuplfk")
+    val string = ApiClient.getApiClient.uploadData(photo, map)
+    val jsonObject = JsonParser.parseString(string).asJsonObject
+
+    return jsonObject.get("url").asString
+}

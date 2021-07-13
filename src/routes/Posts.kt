@@ -35,7 +35,7 @@ fun Route.posts(){
             SchemaUtils.create(Posts)
 
             val postPerPage = 5
-            val page = call.request.queryParameters["page"]!!.toIntOrNull() ?: 0
+            val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
             val postQuery = if(call.request.queryParameters["page"].isNullOrEmpty()){
                 Posts.selectAll()
             }

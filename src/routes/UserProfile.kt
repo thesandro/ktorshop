@@ -2,7 +2,9 @@ package com.highsteaks.routes
 
 import com.highsteaks.database.UserProfile
 import com.highsteaks.database.Users
+import com.highsteaks.models.ImageUrl
 import com.highsteaks.tools.uploadToCloudinary
+import com.highsteaks.tools.uploadToCloudinaryWithoutDimensions
 import com.highsteaks.tools.validateParameters
 import io.ktor.application.*
 import io.ktor.auth.*
@@ -30,7 +32,7 @@ fun Route.completeProfile(){
                     formPart[part.name!!] = part.value
                 }
                 is PartData.FileItem -> {
-                    val url = uploadToCloudinary(part)
+                    val url = uploadToCloudinaryWithoutDimensions(part)
                     formPart["profile_url"] = url
                 }
                 is PartData.BinaryItem -> {
