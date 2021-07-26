@@ -68,9 +68,9 @@ fun Route.posts(){
                     Users.fullName.name to (postOwnerInfoQuery?.get(Users.fullName) ?: "")
                 )
                 resultList.add(postMap)
-                responseMap["result"]  = resultList
-                responseMap["nextPage"] = page+1
             }
+            responseMap["result"]  = resultList
+            responseMap["nextPage"] = page+1
         }
         if(noPage)
             call.respond(HttpStatusCode.OK,resultList)
