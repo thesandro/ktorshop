@@ -39,7 +39,7 @@ fun main(args: Array<String>) {
     }.start(wait = true)
 }
 @Serializable
-data class Person(val name:String,val surname:String,val age:Int,val hobby:String,val ragaca:String)
+data class Person(val name:String,val surname:String,val age:Int,val hobby:String,val description:String)
 
 @OptIn(ExperimentalSerializationApi::class)
 @kotlin.jvm.JvmOverloads
@@ -93,11 +93,11 @@ fun Application.module(testing: Boolean = false) {
         }
 
         get("/protoBuf"){
-            val protoBuf = ProtoBuf.encodeToByteArray(Person("Sandro","Kakhetelidze",15,"huba","ragaca"))
+            val protoBuf = ProtoBuf.encodeToByteArray(Person("Givi","Baramidze",25,"fishing","I am givi."))
             call.respond(protoBuf)
         }
         get("/noProtoBuf"){
-            call.respond(Person("Sandro","Kakhetelidze",15,"huba","ragaca"))
+            call.respond(Person("Givi","Baramidze",25,"fishing","I am givi."))
         }
         //routes
         register()
