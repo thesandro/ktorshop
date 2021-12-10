@@ -41,7 +41,7 @@ fun Route.posts(){
                 Posts.selectAll()
             }
             else{
-                Posts.selectAll().limit(postPerPage,postPerPage* page)
+                Posts.selectAll().orderBy(Posts.id,SortOrder.DESC).limit(postPerPage,postPerPage* page)
             }
             for (item in postQuery) {
                 val urlArray = arrayListOf<Map<String,Any>>()
