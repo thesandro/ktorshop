@@ -1,6 +1,7 @@
 buildscript {
     repositories {
         mavenCentral()
+        jcenter()
     }
     
     dependencies {
@@ -33,6 +34,7 @@ sourceSets {
 
 repositories {
     mavenLocal()
+    jcenter()
     mavenCentral()
     google()
     maven { url 'https://kotlin.bintray.com/ktor' }
