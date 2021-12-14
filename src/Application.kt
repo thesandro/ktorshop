@@ -72,8 +72,8 @@ fun Application.module(testing: Boolean = false) {
         password = "1990965b8171c02ae030159d22c0db07ef1e30c941e29e6f21b347ac520695f9"
 
     }
-    //Database.connect(HikariDataSource(config))
-   Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
+    Database.connect(HikariDataSource(config))
+   //Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
 
     TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
     HttpClient(Apache) {
