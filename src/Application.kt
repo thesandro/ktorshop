@@ -21,6 +21,7 @@ import io.ktor.serialization.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.util.*
+import io.ktor.websocket.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToByteArray
@@ -55,7 +56,7 @@ fun Application.module(testing: Boolean = false) {
     }
 
     val simpleJwt = SimpleJWT("jwtssaidumloebani")
-
+    install(WebSockets)
     install(Authentication) {
         jwt {
             verifier(simpleJwt.verifier)
@@ -71,8 +72,8 @@ fun Application.module(testing: Boolean = false) {
         password = "1990965b8171c02ae030159d22c0db07ef1e30c941e29e6f21b347ac520695f9"
 
     }
-    Database.connect(HikariDataSource(config))
-   //Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
+    //Database.connect(HikariDataSource(config))
+   Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
 
     TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
     HttpClient(Apache) {
@@ -100,6 +101,7 @@ fun Application.module(testing: Boolean = false) {
             call.respond(Person("Givi","Baramidze",25,"fishing","I am givi."))
         }
         //routes
+        webSocketRoute()
         register()
         login(simpleJwt)
         posts()

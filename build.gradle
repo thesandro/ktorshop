@@ -1,11 +1,11 @@
 buildscript {
     repositories {
-        jcenter()
+        mavenCentral()
     }
     
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.10"
-        classpath "org.jetbrains.kotlin:kotlin-serialization:1.5.10"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.10"
+        classpath "org.jetbrains.kotlin:kotlin-serialization:1.6.10"
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.16'
     }
 }
@@ -33,15 +33,17 @@ sourceSets {
 
 repositories {
     mavenLocal()
-    jcenter()
+    mavenCentral()
     google()
     maven { url 'https://kotlin.bintray.com/ktor' }
     maven { url 'https://kotlin.bintray.com/kotlin-js-wrappers' }
+    mavenCentral()
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.10"
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.10'
     implementation "io.ktor:ktor-server-netty:$ktor_version"
+    implementation("io.ktor:ktor-websockets:$ktor_version")
     implementation "ch.qos.logback:logback-classic:$logback_version"
     implementation "io.ktor:ktor-server-core:$ktor_version"
     implementation "io.ktor:ktor-html-builder:$ktor_version"
@@ -50,11 +52,11 @@ dependencies {
     implementation "io.ktor:ktor-client-apache:$ktor_version"
     testImplementation "io.ktor:ktor-server-tests:$ktor_version"
     implementation "io.ktor:ktor-jackson:$ktor_version"
-    implementation 'org.jetbrains.exposed:exposed:0.17.6'
-    implementation "com.h2database:h2:1.4.200"
-    implementation "org.xerial:sqlite-jdbc:3.30.1"
+    implementation 'org.jetbrains.exposed:exposed:0.17.14'
+    implementation 'com.h2database:h2:2.0.202'
+    implementation 'org.xerial:sqlite-jdbc:3.36.0.2'
     implementation "io.ktor:ktor-auth-jwt:$ktor_version"
-    implementation "com.squareup.okhttp3:okhttp:4.7.2"
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
     implementation "io.ktor:ktor-client-logging-jvm:$ktor_version"
     implementation group: 'com.cloudinary', name: 'cloudinary-android', version: '1.28.2'
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
@@ -64,6 +66,6 @@ dependencies {
     implementation group: 'com.zaxxer', name: 'HikariCP', version: '3.4.5'
     runtime group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
     implementation "io.ktor:ktor-serialization:$ktor_version"
-    implementation "org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.2.1"
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-protobuf:1.3.1'
 
 }
