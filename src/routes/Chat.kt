@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
 import com.highsteaks.database.UserProfile
 import com.highsteaks.database.Users
+import com.highsteaks.models.Message
 import com.highsteaks.tools.SimpleJWT
 import io.ktor.application.*
 import io.ktor.auth.*
@@ -53,17 +54,18 @@ fun Route.webSocketRoute(simpleJwt: SimpleJWT){
                 }
                 receivedJson["text"]?.let {
                     text ->
-                    val textObject = mapOf(
-                        "user" to thisConnection.name,
-                        "text" to text
+                    val textObject = Message(
+                        user = thisConnection.name,
+                        isMine = false,
+                        text = text
                     )
                     val json = Json.encodeToString(textObject)
                     connections.forEach {
                         if(it.name == thisConnection.name){
-                            val mineObject = mapOf(
-                                "user" to thisConnection.name,
-                                "isMine" to true,
-                                "text" to text
+                            val mineObject = Message(
+                                user = thisConnection.name,
+                                isMine = true,
+                                text = text
                             )
                             val mineJson = Json.encodeToString(mineObject)
                             it.session.send(mineJson)
