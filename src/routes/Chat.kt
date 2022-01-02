@@ -59,7 +59,18 @@ fun Route.webSocketRoute(simpleJwt: SimpleJWT){
                     )
                     val json = Json.encodeToString(textObject)
                     connections.forEach {
-                        it.session.send(json)
+                        if(it.name == thisConnection.name){
+                            val mineObject = mapOf(
+                                "user" to thisConnection.name,
+                                "isMine" to true,
+                                "text" to text
+                            )
+                            val mineJson = Json.encodeToString(mineObject)
+                            it.session.send(mineJson)
+                        }
+                        else {
+                            it.session.send(json)
+                        }
                     }
                 }
             }
