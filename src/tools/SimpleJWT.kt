@@ -10,4 +10,5 @@ open class SimpleJWT(secret: String) {
     private val algorithm = Algorithm.HMAC256(secret)
     val verifier: JWTVerifier = JWT.require(algorithm).build()
     fun sign(id: Int): String = JWT.create().withClaim("user_id", id).withExpiresAt(expiresAt()).sign(algorithm)
+    fun decodeId(token:String ) =  JWT.decode(token).getClaim("user_id")
 }

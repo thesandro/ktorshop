@@ -73,7 +73,7 @@ fun Application.module(testing: Boolean = false) {
 
     }
     Database.connect(HikariDataSource(config))
-   //Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
+    //Database.connect("jdbc:sqlite:db1", "org.sqlite.JDBC")
 
     TransactionManager.manager.defaultIsolationLevel = Connection.TRANSACTION_SERIALIZABLE
     HttpClient(Apache) {
@@ -101,7 +101,7 @@ fun Application.module(testing: Boolean = false) {
             call.respond(Person("Givi","Baramidze",25,"fishing","I am givi."))
         }
         //routes
-        webSocketRoute()
+        webSocketRoute(simpleJwt)
         register()
         login(simpleJwt)
         posts()

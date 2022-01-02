@@ -94,6 +94,7 @@ fun Route.profile(){
             setOf("user_id")
         )
         val userId = parameters["user_id"]
+
         if (call.principal<UserIdPrincipal>()!!.name != userId) throw InvalidCredentialsException("no access to this user_id")
         var userProfile = mapOf<String, Any>()
         transaction {
